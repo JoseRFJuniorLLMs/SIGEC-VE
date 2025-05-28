@@ -1,9 +1,10 @@
 # ev_charging_system/models/transaction.py
 
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey
+# ADICIONE ESTA LINHA:
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Integer # <--- Adicionado Integer aqui!
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from ev_charging_system.data.database import Base # Importa a Base declarativa
+from ev_charging_system.data.database import Base
 
 class Transaction(Base):
     __tablename__ = "transactions"
