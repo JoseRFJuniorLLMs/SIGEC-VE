@@ -1,4 +1,6 @@
-# SIGEC-VE
+---
+
+```markdown
 # Sistema Inteligente de Gestão de Estações de Carregamento de VE (CSMS) com LLMs
 
 Este projeto propõe uma arquitetura robusta e modular para um **Sistema de Gestão Central de Estações de Carregamento de Veículos Elétricos (CSMS)** que integra **Large Language Models (LLMs)** para funcionalidades avançadas de inteligência e automação. Utiliza o protocolo **OCPP (Open Charge Point Protocol)** para comunicação com os postos de carregamento e o **Model Context Protocol (MCP)** da Anthropic para a orquestração com os LLMs.
@@ -204,8 +206,4 @@ Para garantir a robustez e segurança do sistema:
 * **`websockets` Documentação:** [websockets.readthedocs.io](https://websockets.readthedocs.io/en/stable/)
 
 ---
-
-Este `README.md` oferece uma base sólida para o seu projeto. Lembre-se de atualizá-lo à medida que o projeto evolui e novas funcionalidades são adicionadas!
-```#   S I G E C - V E 
- 
- 
+```
