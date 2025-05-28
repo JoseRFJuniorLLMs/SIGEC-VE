@@ -1,4 +1,3 @@
-```markdown
 # SIGEC-VE
 # Sistema Inteligente de Gestão de Estações de Carregamento de VE (CSMS) com LLMs
 
@@ -207,5 +206,6 @@ Para garantir a robustez e segurança do sistema:
 ---
 
 Este `README.md` oferece uma base sólida para o seu projeto. Lembre-se de atualizá-lo à medida que o projeto evolui e novas funcionalidades são adicionadas!
-```#   S I G E C - V E  
+```#   S I G E C - V E 
+ 
  
