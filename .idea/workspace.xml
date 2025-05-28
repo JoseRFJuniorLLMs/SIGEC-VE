@@ -5,15 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 28/05/2025">
-      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/device_management_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/transaction_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/data/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/data/database.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/data/repositories.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/data/repositories.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/models/charge_point.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/models/charge_point.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/init.py" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/llm_tool.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/models/llm_tool.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/models/transaction.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/models/transaction.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/models/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/models/user.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/models/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -30,21 +31,21 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "JoseRFJuniorLLMs"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;JoseRFJuniorLLMs&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/JoseRFJuniorLLMs/SIGEC-VE.git",
-    "accountId": "63bded2e-e5dd-4f20-ab07-4bb44ae768a5"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/JoseRFJuniorLLMs/SIGEC-VE.git&quot;,
+    &quot;accountId&quot;: &quot;63bded2e-e5dd-4f20-ab07-4bb44ae768a5&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 5
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
   <component name="ProjectId" id="2xjWp4tvFfx7wVeTuRUjExlLwMk" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true">
     <ConfirmationsSetting value="2" id="Add" />
@@ -56,6 +57,8 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Docker.Dockerfile.executor": "Run",
+    "Docker.docker-compose.yml.db: Compose Deployment.executor": "Run",
+    "Docker.docker-compose.yml: Compose Deployment.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "main"
   }
@@ -125,8 +128,37 @@
       </deployment>
       <method v="2" />
     </configuration>
+    <configuration default="true" type="docker-deploy" factoryName="docker-compose.yml" temporary="true">
+      <deployment type="docker-compose.yml">
+        <settings />
+      </deployment>
+      <method v="2" />
+    </configuration>
     <configuration default="true" type="docker-deploy" factoryName="dockerfile" temporary="true">
-      <deployment type="dockerfile" />
+      <deployment type="dockerfile">
+        <settings />
+      </deployment>
+      <method v="2" />
+    </configuration>
+    <configuration name="docker-compose.yml: Compose Deployment" type="docker-deploy" factoryName="docker-compose.yml" temporary="true" server-name="Docker">
+      <deployment type="docker-compose.yml">
+        <settings>
+          <option name="sourceFilePath" value="docker-compose.yml" />
+        </settings>
+      </deployment>
+      <method v="2" />
+    </configuration>
+    <configuration name="docker-compose.yml.db: Compose Deployment" type="docker-deploy" factoryName="docker-compose.yml" temporary="true" server-name="Docker">
+      <deployment type="docker-compose.yml">
+        <settings>
+          <option name="services">
+            <list>
+              <option value="db" />
+            </list>
+          </option>
+          <option name="sourceFilePath" value="docker-compose.yml" />
+        </settings>
+      </deployment>
       <method v="2" />
     </configuration>
     <configuration default="true" type="docs" factoryName="Docutils task">
@@ -200,6 +232,8 @@
     <recent_temporary>
       <list>
         <item itemvalue="Docker.Dockerfile" />
+        <item itemvalue="Docker.docker-compose.yml: Compose Deployment" />
+        <item itemvalue="Docker.docker-compose.yml.db: Compose Deployment" />
       </list>
     </recent_temporary>
   </component>
@@ -291,7 +325,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748453845125</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="begin update 28/05/2025">
+      <option name="closed" value="true" />
+      <created>1748455214251</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1748455214251</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">

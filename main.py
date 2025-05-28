@@ -1,16 +1,17 @@
-# This is a sample Python script.
+# Em main.py ou um script de inicialização do BD
+from ev_charging_system.data.database import Base, engine
+import ev_charging_system.models.charge_point # Importa para que os modelos sejam registrados com a Base
+import ev_charging_system.models.user
+import ev_charging_system.models.transaction
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+def create_db_tables():
+    logger.info("Creating database tables...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created (or already exist).")
 
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+# Chame esta função na inicialização do seu main.py, antes de iniciar os servidores
+# Ex:
+# if __name__ == "__main__":
+#     check_db_connection() # Verifique a conexão
+#     create_db_tables()    # Crie as tabelas
+#     # ... Inicie seus servidores ...

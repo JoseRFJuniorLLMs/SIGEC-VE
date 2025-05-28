@@ -1,23 +1,31 @@
 # ev_charging_system/models/transaction.py
 
-from dataclasses import dataclass
-from typing import Optional
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
+from ev_charging_system.data.database import Base # Importa a Base declarativa
 
-@dataclass
-class Transaction:
-    """Representa uma sessão de carregamento."""
-    id: str  # ID único da transação (gerado pelo CSMS ou CP)
-    charge_point_id: str # ID do posto de carregamento onde ocorreu a transação
-    connector_id: int # ID do conector usado
-    user_id: str # ID do usuário que iniciou a transação
-    start_time: datetime # Data e hora de início da transação
-    end_time: Optional[datetime] = None # Data e hora de término da transação
-    start_meter_value: float # Leitura do contador em kWh no início
-    end_meter_value: Optional[float] = None # Leitura do contador em kWh no final
-    total_energy_kwh: Optional[float] = None # Energia total consumida na sessão (kWh)
-    status: str # Status da transação (e.g., "Charging", "Finished", "Failed", "Canceled")
-    tariff_applied: Optional[str] = None # Tarifa aplicada (e.g., "Padrao", "Noturno")
-    cost: Optional[float] = None # Custo total da transação
-    stop_reason: Optional[str] = None # Motivo do término (e.g., "EVDisconnected", "LocalStop", "RemoteStop")
-    # Outros dados relevantes (eventos, erros específicos da transação)
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(String, primary_key=True, index=True) # ID da transação (OCPP)
+    charge_point_id = Column(String, ForeignKey("charge_points.id"))
+    connector_id = Column(Integer, ForeignKey("charge_point_connectors.id")) # Chave estrangeira para o conector
+    user_id = Column(String, ForeignKey("users.id"))
+    start_time = Column(DateTime, default=datetime.utcnow)
+    end_time = Column(DateTime, nullable=True)
+    start_meter_value = Column(Float) # kWh
+    end_meter_value = Column(Float, nullable=True) # kWh
+    total_energy_kwh = Column(Float, nullable=True)
+    status = Column(String) # Charging, Finished, Failed, Canceled
+    tariff_applied = Column(String, nullable=True)
+    cost = Column(Float, nullable=True)
+    stop_reason = Column(String, nullable=True)
+
+    # Relações:
+    charge_point = relationship("ChargePoint", back_populates="transactions", uselist=False) # Um para um ou muitos para um
+    connector = relationship("ChargePointConnector", back_populates="transactions")
+    user = relationship("User", back_populates="transactions")
+
+    def __repr__(self):
+        return f"<Transaction(id='{self.id}', user_id='{self.user_id}', cp_id='{self.charge_point_id}')>"
