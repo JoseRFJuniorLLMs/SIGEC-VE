@@ -75,6 +75,7 @@ ev_charging_system/
 │
 
 ├── business_logic/
+
 │   ├── auth_service.py            # Lógica de autenticação e autorização
 │   ├── transaction_service.py     # Gerenciamento de sessões de carregamento
 │   ├── smart_charging_service.py  # Algoritmos e regras de smart charging
@@ -84,12 +85,14 @@ ev_charging_system/
 │
 
 ├── data/
+
 │   ├── database.py                # Configuração e interface com o banco de dados
 │   ├── repositories.py            # Métodos para interagir com os modelos (CRUD)
 │   └── init.py
 │
 
 ├── llm_integration/
+
 │   ├── mcp_server.py              # Implementação do Servidor MCP (Anthropic-compatible)
 │   ├── mcp_tools.py               # Definição e implementação das funções das "ferramentas" do MCP
 │   ├── mcp_resources.py           # Definição e implementação das funções dos "recursos" do MCP
@@ -97,12 +100,14 @@ ev_charging_system/
 │   └── init.py
 │
 ├── api/
+
 │   ├── rest_api.py                # API RESTful para interfaces de usuário/integrações
 │   ├── schemas.py                 # Esquemas de validação para a API REST
 │   └── init.py
 │
 
 ├── models/
+
 │   ├── charge_point.py            # Modelos para ChargePoint e ChargePointConnector
 │   ├── user.py                    # Modelo para User
 │   ├── transaction.py             # Modelo para Transaction
