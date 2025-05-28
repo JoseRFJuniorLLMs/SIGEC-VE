@@ -64,71 +64,99 @@ Definições das estruturas de dados principais do sistema.
 ---
 
 ## 📂 Estrutura do Projeto
-
+![Diagrama da Arquitetura do SIGEC-VE](assets/arquitetura.png)
 ev_charging_system/
 
 ├── core/
+
 │   ├── ocpp_server.py             # Implementação do servidor OCPP (CSMS)
+
 │   ├── ocpp_handlers.py           # Funções que tratam mensagens OCPP recebidas
+
 │   ├── connection_manager.py      # Gerencia as conexões WebSocket com os CPs
+
 │   └── init.py
 │
 
 ├── business_logic/
 
 │   ├── auth_service.py            # Lógica de autenticação e autorização
+
 │   ├── transaction_service.py     # Gerenciamento de sessões de carregamento
+
 │   ├── smart_charging_service.py  # Algoritmos e regras de smart charging
+
 │   ├── device_management_service.py # Gestão de CPs (firmware, configs)
+
 │   ├── reporting_service.py       # Geração de relatórios
+
 │   └── init.py
 │
 
 ├── data/
 
 │   ├── database.py                # Configuração e interface com o banco de dados
+
 │   ├── repositories.py            # Métodos para interagir com os modelos (CRUD)
+
 │   └── init.py
 │
 
 ├── llm_integration/
 
 │   ├── mcp_server.py              # Implementação do Servidor MCP (Anthropic-compatible)
+
 │   ├── mcp_tools.py               # Definição e implementação das funções das "ferramentas" do MCP
+
 │   ├── mcp_resources.py           # Definição e implementação das funções dos "recursos" do MCP
+
 │   ├── llm_prompts.py             # Modelos de prompts para o LLM
+
 │   └── init.py
 │
 ├── api/
 
 │   ├── rest_api.py                # API RESTful para interfaces de usuário/integrações
+
 │   ├── schemas.py                 # Esquemas de validação para a API REST
+
 │   └── init.py
 │
 
 ├── models/
 
 │   ├── charge_point.py            # Modelos para ChargePoint e ChargePointConnector
+
 │   ├── user.py                    # Modelo para User
+
 │   ├── transaction.py             # Modelo para Transaction
+
 │   ├── llm_tool.py                # Modelos para LLMToolDefinition e LLMResourceDefinition
+
 │   └── init.py
 │
 
 ├── config/
 │   ├── settings.py                # Configurações do projeto (portas, URLs de DB, chaves de API, etc.)
+
 │   └── init.py
 │
 
 ├── tests/                         # Testes unitários e de integração
+
 │   ├── test_ocpp_server.py
+
 │   ├── test_mcp_server.py
+
 │   └── ...
 │
 
 ├── main.py                        # Ponto de entrada principal da aplicação
+
 ├── requirements.txt               # Lista de dependências Python
+
 ├── Dockerfile                     # Para conteinerização da aplicação
+
 └── README.md                      # Este arquivo!
 
 
