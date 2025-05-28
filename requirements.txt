@@ -1,0 +1,25 @@
+# requirements.txt
+
+# --- Camada de Comunicação OCPP ---
+ocpp>=0.1.0  # Biblioteca mobilityhouse/ocpp (verifique a versão mais recente)
+websockets>=12.0  # Para comunicação WebSocket do OCPP
+
+# --- Framework Web (API RESTful) ---
+fastapi>=0.100.0  # Framework para criar a API REST
+uvicorn[standard]>=0.20.0  # Servidor ASGI para rodar o FastAPI
+
+# --- Banco de Dados e ORM/Validação ---
+psycopg2-binary>=2.9  # Adaptador Python para PostgreSQL
+SQLAlchemy>=2.0.0  # (Opcional, mas altamente recomendado para ORM)
+alembic>=1.0.0 # (Opcional, para migrações de banco de dados com SQLAlchemy)
+pydantic>=2.0.0  # Para validação de dados nos modelos e esquemas da API (FastAPI já usa, mas bom listar explicitamente)
+
+# --- Integração com LLMs (Google Gemini API) ---
+google-generativeai>=0.1.0 # SDK do Google para acessar LLMs como o Gemini
+
+# --- Testes ---
+pytest>=7.0.0  # Framework de testes unitários
+pytest-asyncio>=0.21.0 # Para testar código assíncrono (necessário com websockets e FastAPI)
+
+# --- Utilitários ---
+python-dotenv>=1.0.0 # Para carregar variáveis de ambiente de um arquivo .env
