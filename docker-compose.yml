@@ -1,48 +1,37 @@
-version: '3.8' # Versão da especificação do Docker Compose
-
+version: '3.8'
 services:
-  # Serviço para o seu aplicativo Python (CSMS com LLM)
   app:
     build:
-      context: . # O Dockerfile está no diretório atual
-      dockerfile: Dockerfile # Nome do Dockerfile
-    container_name: sigec_ve_app
+      context: .
+      dockerfile: Dockerfile
+      no_cache: true # Manter isso por precaução
     ports:
-      - "8000:8000" # Mapeia a porta do LLM Connector/Tool Router (FastAPI)
-      - "8001:8001" # Mapeia a porta da API REST (FastAPI)
-    environment:
-      # Essas variáveis de ambiente serão passadas para o contêiner 'app'
-      DATABASE_URL: postgresql://sigec_user:sua_senha_segura@db:5432/sigec_ve_database
-      OCPP_SERVER_PORT: 9000 # Porta interna do contêiner para o OCPP
-      LLM_CONNECTOR_PORT: 8000 # Renomeado de MCP_SERVER_PORT para ser mais genérico
-      FASTAPI_PORT: 8001
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY} # Agora usamos a chave do Google aqui!
-
-    depends_on:
-      - db # Garante que o serviço 'db' seja iniciado antes do 'app'
-    networks:
-      - sigec_network
-
-  # Serviço para o banco de dados PostgreSQL
-  db:
-    image: postgres:16-alpine # Imagem Docker do PostgreSQL
-    container_name: sigec_ve_db
-    environment:
-      POSTGRES_USER: sigec_user
-      POSTGRES_PASSWORD: sua_senha_segura # A mesma senha que você usou no 'docker run'
-      POSTGRES_DB: sigec_ve_database
+      - "8000:8000"
+      - "8001:8001"
+      - "9000:9000"
+      # Removido: - "9001:9001"
     volumes:
-      - db_data:/var/lib/postgresql/data # Mapeia um volume para persistir os dados do BD
-    ports:
-      - "5432:5432" # Mapeia a porta do BD para o host, útil para acessar de fora
+      - .:/app
+    command: python ev_charging_system/main.py # VOLTOU AO NORMAL
+    networks:
+      - sigec_network
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: your_db_name
+      POSTGRES_USER: your_db_user
+      POSTGRES_PASSWORD: your_db_password
     networks:
       - sigec_network
 
-# Definição dos volumes para persistência de dados do banco de dados
-volumes:
-  db_data:
-
-# Definição das redes para comunicação entre os contêineres
 networks:
   sigec_network:
     driver: bridge
+
+volumes:
+  db_data:

@@ -12,6 +12,10 @@ COPY requirements.txt .
 # Instala as dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
+# --- ADICIONE ESTA LINHA AQUI PARA ATUALIZAR O WEBSOCKETS ---
+RUN pip install --no-cache-dir --upgrade websockets
+# -------------------------------------------------------------
+
 # Copia suas credenciais para um local seguro no contêiner
 # Sugestão: /app/config/credentials.json (ou qualquer outro caminho dentro de /app)
 # Certifique-se de que o caminho de origem (primeiro argumento) esteja correto.
