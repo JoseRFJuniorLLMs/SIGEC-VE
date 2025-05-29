@@ -4,15 +4,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      no_cache: true # Manter isso por precaução
+      no_cache: true
     ports:
       - "8000:8000"
       - "8001:8001"
       - "9000:9000"
-      # Removido: - "9001:9001"
     volumes:
       - .:/app
-    command: python ev_charging_system/main.py # VOLTOU AO NORMAL
+    command: python ev_charging_system/main.py
+    environment: # <--- ADICIONE ESTA SEÇÃO
+      DATABASE_URL: postgresql://your_db_user:your_db_password@db:5432/your_db_name # <--- E ESTA LINHA
     networks:
       - sigec_network
     depends_on:
