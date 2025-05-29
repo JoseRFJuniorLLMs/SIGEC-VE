@@ -5,21 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 29/05/2025">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/credentials.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/run_ocp_tests.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_client.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_db_connection.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_websockets_server.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/SIGEC-VE.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/SIGEC-VE.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_cp.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_cp.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_mcp_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_mcp_server.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_ocpp_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/credentials.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -59,24 +50,25 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Docker.Dockerfile.executor": "Run",
-    "Docker.docker-compose.yml.app: Compose Deployment.executor": "Run",
-    "Docker.docker-compose.yml.db: Compose Deployment.executor": "Run",
-    "Docker.docker-compose.yml: Compose Deployment.executor": "Run",
-    "Python tests.Python tests for test_db_connection.test_db_connection.executor": "Run",
-    "Python.main.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "D:/dev/SIGEC-VE/pythonProject"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Docker.Dockerfile.executor&quot;: &quot;Run&quot;,
+    &quot;Docker.docker-compose.yml.app: Compose Deployment.executor&quot;: &quot;Run&quot;,
+    &quot;Docker.docker-compose.yml.db: Compose Deployment.executor&quot;: &quot;Run&quot;,
+    &quot;Docker.docker-compose.yml: Compose Deployment.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests for test_db_connection.test_db_connection.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/dev/SIGEC-VE/pythonProject&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\dev\SIGEC-VE\pythonProject" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\dev\SIGEC-VE\pythonProject\ev_charging_system" />
       <recent name="D:\dev\SIGEC-VE\pythonProject\ev_charging_system\config" />
     </key>
   </component>
@@ -94,7 +86,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+      <option name="SCRIPT_NAME" value="D:\dev\SIGEC-VE\pythonProject\ev_charging_system\main.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -310,11 +302,20 @@
       <option name="project" value="LOCAL" />
       <updated>1748549686940</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="begin update 29/05/2025">
+      <option name="closed" value="true" />
+      <created>1748558576777</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1748558576777</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="begin update 28/05/2025" />
-    <option name="LAST_COMMIT_MESSAGE" value="begin update 28/05/2025" />
+    <MESSAGE value="begin update 29/05/2025" />
+    <option name="LAST_COMMIT_MESSAGE" value="begin update 29/05/2025" />
   </component>
 </project>
