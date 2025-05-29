@@ -1,5 +1,3 @@
-# Dockerfile
-
 # Use uma imagem base Python
 FROM python:3.10-slim-buster
 
@@ -17,7 +15,7 @@ RUN pip install --no-cache-dir --upgrade websockets
 # -------------------------------------------------------------
 
 # Adiciona a raiz do projeto ao PYTHONPATH para que os módulos internos sejam encontrados
-ENV PYTHONPATH /app # <--- ESTA LINHA É ESSENCIAL E DEVE ESTAR AQUI!
+ENV PYTHONPATH /app
 
 # Copia suas credenciais para um local seguro no contêiner
 # Sugestão: /app/config/credentials.json (ou qualquer outro caminho dentro de /app)
@@ -37,5 +35,5 @@ EXPOSE 8001
 EXPOSE 9000
 
 # Comando para rodar a aplicação quando o contêiner inicia
-# ATENÇÃO: Corrigido o caminho para main.py
-CMD ["python", "ev_charging_system/main.py"]
+# ATENÇÃO: Alterado para usar "bash -c" para garantir que o PYTHONPATH seja carregado corretamente.
+CMD ["bash", "-c", "python ev_charging_system/main.py"]
