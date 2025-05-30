@@ -249,4 +249,29 @@ mcp_tools.py e mcp_resources.py: Atuam como a interface do MCP, descrevendo o qu
 device_management_service.py (e outros serviços em business_logic/): Contêm a lógica de negócio principal que executa as ações e recupera os dados.
 ocpp_server.py / ocpp_handlers.py: Serão chamados pelos serviços de lógica de negócio para enviar mensagens OCPP aos postos de carregamento, se a ferramenta exigir interação direta com o CP.
 repositories.py / database.py: Interagem com o banco de dados para armazenar e buscar dados.
+
+Ferramentas (Tools) - Definidas em mcp_tools.py
+Estas são as ações que o LLM pode executar no seu Sistema de Gestão de Estações de Carregamento:
+
+POST /reset_charge_point
+Descrição: Solicita o reset remoto de um Charge Point.
+POST /update_charge_point_configuration
+Descrição: Atualiza a configuração de um Charge Point (e.g., HeartbeatInterval).
+POST /start_ocpp_transaction
+Descrição: Inicia remotamente uma transação de carregamento OCPP em um conector específico.
+POST /stop_ocpp_transaction
+Descrição: Para remotamente uma transação de carregamento OCPP em andamento.
+POST /set_connector_status
+Descrição: Altera o status operacional de um conector (e.g., "Available", "Unavailable", "Faulted").
+Recursos (Resources) - Definidos em mcp_resources.py
+Estes são os dados e informações que o LLM pode consultar do seu Sistema de Gestão de Estações de Carregamento:
+
+GET /get_charge_point_status/{charge_point_id}
+Descrição: Obtém o status atual e detalhes de um Charge Point específico, incluindo o status de seus conectores.
+GET /list_charge_points
+Descrição: Lista todos os Charge Points registrados, com a opção de filtrar por status geral do CP.
+GET /list_connectors_by_status
+Descrição: Lista conectores que possuem um status específico (e.g., "Available", "Charging", "Faulted").
+GET /get_transaction_details/{transaction_id}
+Descrição: Obtém detalhes de uma transação específica (lógica de busca a ser implementada).
 ---

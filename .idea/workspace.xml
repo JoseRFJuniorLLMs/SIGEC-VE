@@ -5,7 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 29/05/2025">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_resources.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_resources.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_tools.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -356,7 +359,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748563941717</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="begin update 29/05/2025">
+      <option name="closed" value="true" />
+      <created>1748564346214</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1748564346214</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
