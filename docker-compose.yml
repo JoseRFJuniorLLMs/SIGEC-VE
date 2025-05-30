@@ -9,11 +9,11 @@ services:
       - "8000:8000"
       - "8001:8001"
       - "9000:9000"
-    # COMENTE OU REMOVA ESTA SEÇÃO:
     # volumes:
-    #   - .:/app
+    #   - .:/app # Deixe esta linha comentada, por enquanto
     environment:
-      DATABASE_URL: postgresql://your_db_user:your_db_password@db:5432/your_db_name
+      # Use os MESMOS valores que você definir abaixo para o serviço 'db'
+      DATABASE_URL: postgresql://sigec_user:minhasenhaforte@db:5432/sigec_database # <-- Substitua aqui!
     networks:
       - sigec_network
     depends_on:
@@ -24,9 +24,9 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: your_db_name
-      POSTGRES_USER: your_db_user
-      POSTGRES_PASSWORD: your_db_password
+      POSTGRES_DB: sigec_database     # <-- Substitua aqui!
+      POSTGRES_USER: sigec_user       # <-- Substitua aqui!
+      POSTGRES_PASSWORD: minhasenhaforte # <-- Substitua aqui!
     networks:
       - sigec_network
 
