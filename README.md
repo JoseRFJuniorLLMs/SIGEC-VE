@@ -243,4 +243,10 @@ Para garantir a robustez e segurança do sistema:
 * **Anthropic's Model Context Protocol (MCP) Artigo:** Consulte a documentação da Anthropic e artigos como "Model Context Protocol (MCP): A Guide With Demo Project" para detalhes sobre a implementação do MCP.
 * **`websockets` Documentação:** [websockets.readthedocs.io](https://websockets.readthedocs.io/en/stable/)
 
+Em resumo:
+
+mcp_tools.py e mcp_resources.py: Atuam como a interface do MCP, descrevendo o que o LLM pode fazer/saber.
+device_management_service.py (e outros serviços em business_logic/): Contêm a lógica de negócio principal que executa as ações e recupera os dados.
+ocpp_server.py / ocpp_handlers.py: Serão chamados pelos serviços de lógica de negócio para enviar mensagens OCPP aos postos de carregamento, se a ferramenta exigir interação direta com o CP.
+repositories.py / database.py: Interagem com o banco de dados para armazenar e buscar dados.
 ---
