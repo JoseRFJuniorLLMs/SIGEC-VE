@@ -1,7 +1,7 @@
 # ev_charging_system/data/database.py
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import OperationalError
 import logging
@@ -58,7 +58,7 @@ def check_db_connection():
     """
     try:
         with engine.connect() as connection:
-            connection.execute("SELECT 1")
+            connection.execute(text("SELECT 1"))
         logger.info("Database connection successful!")
         return True
     except OperationalError as e:

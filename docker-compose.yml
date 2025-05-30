@@ -9,26 +9,32 @@ services:
       - "8000:8000"
       - "8001:8001"
       - "9000:9000"
-    # volumes:
-    #   - .:/app # Deixe esta linha comentada, por enquanto
     environment:
-      # Use os MESMOS valores que você definir abaixo para o serviço 'db'
-      DATABASE_URL: postgresql://sigec_user:minhasenhaforte@db:5432/sigec_database # <-- Substitua aqui!
+      DATABASE_URL: postgresql://sigec_user:minhasenhaforte@db:5432/sigec_database
     networks:
       - sigec_network
     depends_on:
-      - db
+      db: # <--- MUDANÇA AQUI!
+        condition: service_healthy # <--- ADICIONE ESTA LINHA!
 
   db:
     image: postgres:13-alpine
     volumes:
       - db_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: sigec_database     # <-- Substitua aqui!
-      POSTGRES_USER: sigec_user       # <-- Substitua aqui!
-      POSTGRES_PASSWORD: minhasenhaforte # <-- Substitua aqui!
+      POSTGRES_DB: sigec_database
+      POSTGRES_USER: sigec_user
+      POSTGRES_PASSWORD: minhasenhaforte
+    ports:
+      - "5432:5432"
     networks:
       - sigec_network
+    healthcheck: # <--- ADICIONE ESTA SEÇÃO COMPLETA!
+      test: ["CMD-SHELL", "pg_isready -U sigec_user -d sigec_database"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s # Dê um tempo para o DB inicializar antes de começar a checar
 
 networks:
   sigec_network:
