@@ -5,15 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 29/05/2025">
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_ocpp_app.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/run_ocp_tests.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_client.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_cp.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_db_connection.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_mcp_server.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_websockets_server.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/api/rest_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/api/rest_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_server.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -348,7 +343,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748561755308</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="begin update 29/05/2025">
+      <option name="closed" value="true" />
+      <created>1748563585925</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1748563585925</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
