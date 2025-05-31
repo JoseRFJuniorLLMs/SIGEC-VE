@@ -4,31 +4,35 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 29/05/2025">
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/user_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/changing/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/changing/charge_point_simulator.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_central_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/data/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/llm_integration/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/simulator/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/simulator/charge_point_simulator.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/simulator/ev_simulator.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_completo.py" afterDir="false" />
+    <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 30/05/2025">
+      <change afterPath="$PROJECT_DIR$/.env.test" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_websocket_server.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/data/models.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/services/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/services/device_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/services/transaction_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/conftest.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_ocpp_server_connection.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/MCP/init.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/MCP/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/api/init.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/api/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/api/rest_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/api/rest_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/business_logic/device_management_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/device_management_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/business_logic/transaction_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/transaction_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/changing/charge_point_simulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/changing/charge_point_simulator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/core/connection_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/connection_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_central_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_central_manager.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_server.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/data/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/data/database.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/data/init.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/llm_integration/mcp_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/data/repositories.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/data/repositories.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/charge_point.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/llm_tool.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/transaction.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/user.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_completo.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_ocpp_app.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -79,7 +83,9 @@
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/dev/SIGEC-VE/pythonProject&quot;
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/dev/SIGEC-VE/pythonProject&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settingsDialog.application.dockerMachine&quot;
   }
 }</component>
   <component name="RecentsManager">
@@ -198,7 +204,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-0e3be3396995-c546a90a8094-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.23339.19" />
+        <option value="bundled-python-sdk-af26db0dccfe-c546a90a8094-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.26775.22" />
       </set>
     </attachedChunks>
   </component>
@@ -395,7 +401,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748565326582</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="begin update 30/05/2025">
+      <option name="closed" value="true" />
+      <created>1748644336938</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1748644336938</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -412,6 +426,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="begin update 28/05/2025" />
     <MESSAGE value="begin update 29/05/2025" />
-    <option name="LAST_COMMIT_MESSAGE" value="begin update 29/05/2025" />
+    <MESSAGE value="begin update 30/05/2025" />
+    <option name="LAST_COMMIT_MESSAGE" value="begin update 30/05/2025" />
   </component>
 </project>

@@ -14,8 +14,8 @@ services:
     networks:
       - sigec_network
     depends_on:
-      db: # <--- MUDANÇA AQUI!
-        condition: service_healthy # <--- ADICIONE ESTA LINHA!
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:13-alpine
@@ -24,17 +24,17 @@ services:
     environment:
       POSTGRES_DB: sigec_database
       POSTGRES_USER: sigec_user
-      POSTGRES_PASSWORD: minhasenhaforte
+      POSTGRES_PASSWORD: minhasenhaforte  # <--- CONFIRME ESTA LINHA E A INDENTAÇÃO!
     ports:
       - "5432:5432"
     networks:
       - sigec_network
-    healthcheck: # <--- ADICIONE ESTA SEÇÃO COMPLETA!
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sigec_user -d sigec_database"]
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s # Dê um tempo para o DB inicializar antes de começar a checar
+      start_period: 10s
 
 networks:
   sigec_network:

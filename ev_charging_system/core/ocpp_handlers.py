@@ -1,209 +1,242 @@
 # ev_charging_system/core/ocpp_handlers.py
 
-from datetime import datetime
 import logging
-from ocpp.routing import on
-from ocpp.v16.enums import RegistrationStatus, ChargePointStatus # Remover Action daqui!
+from ocpp.v16 import ChargePoint as OCPPCp
 from ocpp.v16 import call_result
-from ocpp.v16.datatypes import IdTagInfo # Importação correta!
+# Removido 'ErrorCode' daqui. Ele não está disponível para importação direta em ocpp.v16.enums
+from ocpp.v16.enums import RegistrationStatus, AuthorizationStatus, Action, ChargePointStatus
+from ocpp.routing import on
+from datetime import datetime
 
-# Importe sua base de dados e serviços
-from ev_charging_system.data.database import SessionLocal, get_db
+# IMPORTANTE: Importe os modelos da sua ÚNICA FONTE DE VERDADE: ev_charging_system/data/models.py
+from ev_charging_system.data.models import ChargePoint, Connector, Transaction, User
+# Importe as dependências de serviço e repositório
+from ev_charging_system.data.database import get_db
 from ev_charging_system.business_logic.device_management_service import DeviceManagementService
-from ev_charging_system.business_logic.transaction_service import TransactionService # NOVO IMPORT
-from ev_charging_system.models.charge_point import ChargePointConnector
+from ev_charging_system.business_logic.transaction_service import TransactionService
 
 logger = logging.getLogger(__name__)
 
 
-# --- Handlers OCPP ---
+# Função auxiliar para obter o serviço e a sessão do DB
+def get_service_and_db_session():
+    db_session = next(get_db())
+    # O DeviceManagementService e TransactionService precisam dos repositórios
+    # Para simplicidade aqui, vamos instanciar os repositórios diretamente com a sessão.
+    from ev_charging_system.data.repositories import ChargePointRepository, TransactionRepository, UserRepository
+    cp_repo = ChargePointRepository(db_session)
+    tx_repo = TransactionRepository(db_session)
+    user_repo = UserRepository(db_session)
 
-@on("BootNotification")
-async def handle_boot_notification(
-    charge_point_id: str,
-    vendor_name: str,
-    model: str,
-    firmware_version: str,
-    **kwargs,  # Captura quaisquer outros argumentos enviados
-):
+    device_service = DeviceManagementService(cp_repo, tx_repo, user_repo)
+    transaction_service = TransactionService(db_session)
+    return device_service, transaction_service, db_session
+
+
+# --- Handlers para mensagens OCPP ---
+
+@on(Action.boot_notification)
+async def on_boot_notification(charge_point: OCPPCp, charge_point_model: str, charge_point_vendor: str, **kwargs):
     """
-    Handler para a mensagem BootNotification.
-    Quando um CP inicia, ele envia esta mensagem para se registrar.
+    Handle a BootNotification request from a Charge Point.
+    This is the first message a CP sends after booting up.
     """
-    logger.info(
-        f"BootNotification from CP: {charge_point_id} - Vendor: {vendor_name}, Model: {model}, FW: {firmware_version}"
-    )
+    logger.info(f"BootNotification from {charge_point.id} (Model: {charge_point_model}, Vendor: {charge_point_vendor})")
 
-    db_session = next(get_db())  # Obtém uma nova sessão de BD
-    device_service = DeviceManagementService(db_session)
-
+    device_service, transaction_service, db_session = get_service_and_db_session()
     try:
-        connectors_data = []
+        existing_cp = device_service.get_charge_point_by_id(charge_point.id)
+        if not existing_cp:
+            # Add new Charge Point to DB if it doesn't exist
+            num_connectors = kwargs.get('num_connectors', 1)
+            device_service.add_charge_point(
+                cp_id=charge_point.id,
+                vendor=charge_point_vendor,
+                model=charge_point_model,
+                num_connectors=num_connectors
+            )
+            logger.info(f"New Charge Point {charge_point.id} added to DB.")
+        else:
+            # Update existing CP status
+            device_service.update_charge_point_status(charge_point.id, "Online")
+            logger.info(f"Charge Point {charge_point.id} status updated to Online.")
 
-        charge_point = device_service.register_or_update_charge_point(
-            cp_id=charge_point_id,
-            vendor_name=vendor_name,
-            model=model,
-            firmware_version=firmware_version,
-            status="Online",
-            connectors_data=connectors_data,
-            location=kwargs.get("charge_point_location"),
-            latitude=kwargs.get("charge_point_latitude"),
-            longitude=kwargs.get("charge_point_longitude"),
-        )
-        charge_point.last_boot_time = datetime.utcnow()
-        charge_point.last_heartbeat_time = datetime.utcnow()
-        device_service.charge_point_repo.update_charge_point(
-            charge_point
-        )
-
-        logger.info(f"Charge Point {charge_point_id} registered/updated successfully.")
+        # Return a BootNotification confirmation
         return call_result.BootNotification(
-            status=RegistrationStatus.accepted, interval=300
+            current_time=datetime.utcnow().isoformat(),
+            interval=300,  # Heartbeat interval in seconds
+            status=RegistrationStatus.accepted
         )
     except Exception as e:
-        logger.error(f"Error handling BootNotification for {charge_point_id}: {e}")
-        return call_result.BootNotification(status=RegistrationStatus.rejected, interval=300)
+        logger.error(f"Error handling BootNotification for {charge_point.id}: {e}", exc_info=True)
+        return call_result.BootNotification(
+            current_time=datetime.utcnow().isoformat(),
+            interval=300,
+            status=RegistrationStatus.rejected
+        )
     finally:
         db_session.close()
 
 
-@on("Heartbeat")
-async def handle_heartbeat(charge_point_id: str):
+@on(Action.heartbeat)
+async def on_heartbeat(charge_point: OCPPCp):
     """
-    Handler para a mensagem Heartbeat.
-    Usado para manter a conexão ativa e informar que o CP está online.
+    Handle a Heartbeat request from a Charge Point.
     """
-    logger.debug(f"Heartbeat from CP: {charge_point_id}")
-
-    db_session = next(get_db())
-    device_service = DeviceManagementService(db_session)
-
+    logger.debug(f"Heartbeat from {charge_point.id}")
+    device_service, transaction_service, db_session = get_service_and_db_session()
     try:
-        charge_point = device_service.get_charge_point_details(charge_point_id)
-        if charge_point:
-            charge_point.last_heartbeat_time = datetime.utcnow()
-            device_service.charge_point_repo.update_charge_point(charge_point)
-            logger.debug(f"Updated last_heartbeat_time for {charge_point_id}")
-        else:
-            logger.warning(f"Heartbeat from unknown CP: {charge_point_id}. Consider forcing a BootNotification.")
+        device_service.update_charge_point_last_heartbeat(charge_point.id)
         return call_result.Heartbeat(current_time=datetime.utcnow().isoformat())
     except Exception as e:
-        logger.error(f"Error handling Heartbeat for {charge_point_id}: {e}")
+        logger.error(f"Error handling Heartbeat for {charge_point.id}: {e}", exc_info=True)
         return call_result.Heartbeat(current_time=datetime.utcnow().isoformat())
     finally:
         db_session.close()
 
 
-@on("StatusNotification")
-async def handle_status_notification(
-    charge_point_id: str,
-    connector_id: int,
-    status: str,
-    **kwargs,
-):
+@on(Action.status_notification)
+async def on_status_notification(charge_point: OCPPCp, connector_id: int, status: str, **kwargs):
     """
-    Handler para a mensagem StatusNotification.
-    Informa sobre mudanças de status do CP ou de um conector.
+    Handle a StatusNotification request from a Charge Point.
+    This informs the CSMS about status changes of connectors or the CP itself.
     """
-    logger.info(f"StatusNotification from CP: {charge_point_id}, Connector: {connector_id}, Status: {status}")
+    logger.info(f"StatusNotification from {charge_point.id} - Connector {connector_id}: {status}")
 
-    db_session = next(get_db())
-    device_service = DeviceManagementService(db_session)
-
+    device_service, transaction_service, db_session = get_service_and_db_session()
     try:
-        updated_connector = device_service.update_connector_status(
-            cp_id=charge_point_id,
-            connector_id=connector_id,
-            status=status,
-            current_transaction_id=kwargs.get("transaction_id"),
-        )
-        if updated_connector:
-            logger.info(f"Connector {charge_point_id}-{connector_id} status updated to {status}.")
+        if connector_id == 0:  # ConnectorId 0 usually refers to the CP itself
+            device_service.update_charge_point_status(charge_point.id, status)
         else:
-            logger.warning(f"StatusNotification for unknown connector {charge_point_id}-{connector_id}.")
-
-        if connector_id == 0:
-            device_service.update_charge_point_status(charge_point_id, status)
-            logger.info(f"Charge Point {charge_point_id} overall status updated to {status}.")
-
+            device_service.update_connector_status(charge_point.id, connector_id, status)
         return call_result.StatusNotification()
     except Exception as e:
-        logger.error(f"Error handling StatusNotification for {charge_point_id}-{connector_id}: {e}")
-        return call_result.StatusNotification()
+        logger.error(f"Error handling StatusNotification for {charge_point.id}, connector {connector_id}: {e}",
+                     exc_info=True)
+        return call_result.StatusNotification()  # StatusNotification does not return errors
     finally:
         db_session.close()
 
 
-@on("Authorize")
-async def handle_authorize(charge_point_id: str, id_tag: str):
-    logger.info(f"Authorize request from {charge_point_id} for ID Tag: {id_tag}")
-    return call_result.Authorize(id_tag_info={"status": IdTagInfo.Accepted})
-
-
-@on("StartTransaction")
-async def handle_start_transaction(
-    charge_point_id: str, connector_id: int, id_tag: str, meter_start: int, timestamp: str, transaction_id: int, **kwargs
-):
+@on(Action.authorize)
+async def on_authorize(charge_point: OCPPCp, id_tag: str):
     """
-    Handler para a mensagem StartTransaction.
-    O Charge Point inicia uma transação e notifica o CSMS.
+    Handle an Authorize request from a Charge Point.
+    Checks if the id_tag is valid.
+    """
+    logger.info(f"Authorize request from {charge_point.id} for ID Tag: {id_tag}")
+
+    device_service, transaction_service, db_session = get_service_and_db_session()
+    try:
+        user = device_service.get_user_by_id_tag(id_tag)
+        if user and user.is_active:
+            logger.info(f"ID Tag {id_tag} authorized for {user.name}.")
+            return call_result.Authorize(id_tag_info={"status": AuthorizationStatus.accepted})
+        else:
+            logger.warning(f"ID Tag {id_tag} not authorized (user not found or inactive).")
+            return call_result.Authorize(id_tag_info={"status": AuthorizationStatus.invalid})
+    except Exception as e:
+        logger.error(f"Error handling Authorize for {charge_point.id}, ID Tag {id_tag}: {e}", exc_info=True)
+        return call_result.Authorize(id_tag_info={"status": AuthorizationStatus.invalid})
+    finally:
+        db_session.close()
+
+
+@on(Action.start_transaction)
+async def on_start_transaction(charge_point: OCPPCp, connector_id: int, id_tag: str, meter_start: int, **kwargs):
+    """
+    Handle a StartTransaction request from a Charge Point.
+    This marks the beginning of a charging session.
     """
     logger.info(
-        f"StartTransaction from CP: {charge_point_id} - Connector: {connector_id}, ID Tag: {id_tag}, "
-        f"Meter Start: {meter_start}, Timestamp: {timestamp}, Transaction ID (CP): {transaction_id}"
-    )
+        f"StartTransaction from {charge_point.id} - Connector {connector_id}, ID Tag: {id_tag}, Meter Start: {meter_start}")
 
-    db_session = next(get_db())
+    transaction_id = kwargs.get('transaction_id')
+    if not transaction_id:
+        transaction_id = f"TX-{charge_point.id}-{datetime.utcnow().timestamp()}"
+
+    device_service, transaction_service, db_session = get_service_and_db_session()
     try:
-        transaction_service = TransactionService(db_session)
-        # Chama o serviço de transação para persistir os detalhes
-        await transaction_service.handle_start_transaction_from_cp(
-            charge_point_id=charge_point_id,
+        user = device_service.get_user_by_id_tag(id_tag)
+        if not user or not user.is_active:
+            logger.warning(f"StartTransaction refused for {charge_point.id} due to invalid/inactive ID Tag: {id_tag}")
+            return call_result.StartTransaction(transaction_id=0, id_tag_info={"status": AuthorizationStatus.invalid})
+
+        new_transaction = await transaction_service.start_transaction(
+            charge_point_id=charge_point.id,
             connector_id=connector_id,
             id_tag=id_tag,
-            meter_start=meter_start,
-            start_timestamp=datetime.fromisoformat(timestamp.replace('Z', '+00:00')), # Adapta para datetime com fuso horário
-            ocpp_transaction_id=transaction_id # ID da transação que o CP está reportando
+            meter_start=float(meter_start),
+            transaction_id=transaction_id
         )
-        # Retorna Accepted para o Charge Point
-        return call_result.StartTransaction(id_tag_info={"status": IdTagInfo.Accepted}, transaction_id=transaction_id)
+
+        logger.info(
+            f"Transaction {new_transaction.transaction_id} successfully started for {charge_point.id}, Connector {connector_id}")
+        return call_result.StartTransaction(
+            transaction_id=new_transaction.id,  # O OCPP TransactionId é o ID INTERNO no CSMS
+            id_tag_info={"status": AuthorizationStatus.accepted}
+        )
+    except ValueError as ve:
+        logger.error(f"Validation error in StartTransaction for {charge_point.id}: {ve}")
+        return call_result.StartTransaction(transaction_id=0, id_tag_info={"status": AuthorizationStatus.invalid})
     except Exception as e:
-        logger.error(f"Error handling StartTransaction for {charge_point_id}: {e}", exc_info=True)
-        # Em caso de erro, pode retornar um status diferente, mas Accepted é comum para evitar reenvios.
-        return call_result.StartTransaction(id_tag_info={"status": IdTagInfo.Blocked}, transaction_id=transaction_id)
+        logger.error(f"Error handling StartTransaction for {charge_point.id}: {e}", exc_info=True)
+        return call_result.StartTransaction(transaction_id=0, id_tag_info={"status": AuthorizationStatus.invalid})
     finally:
         db_session.close()
 
 
-@on("StopTransaction")
-async def handle_stop_transaction(
-    charge_point_id: str, transaction_id: int, meter_stop: int, timestamp: str, reason: str, **kwargs
-):
+@on(Action.stop_transaction)
+async def on_stop_transaction(charge_point: OCPPCp, transaction_id: int, meter_stop: int, **kwargs):
     """
-    Handler para a mensagem StopTransaction.
-    O Charge Point finaliza uma transação e notifica o CSMS.
+    Handle a StopTransaction request from a Charge Point.
+    This marks the end of a charging session.
     """
-    logger.info(
-        f"StopTransaction from CP: {charge_point_id} - Transaction ID (CP): {transaction_id}, "
-        f"Meter Stop: {meter_stop}, Timestamp: {timestamp}, Reason: {reason}"
-    )
+    logger.info(f"StopTransaction from {charge_point.id} - Transaction ID: {transaction_id}, Meter Stop: {meter_stop}")
 
-    db_session = next(get_db())
+    device_service, transaction_service, db_session = get_service_and_db_session()
     try:
-        transaction_service = TransactionService(db_session)
-        # Chama o serviço de transação para finalizar os detalhes
-        await transaction_service.handle_stop_transaction_from_cp(
-            charge_point_id=charge_point_id,
-            ocpp_transaction_id=transaction_id,
-            meter_stop=meter_stop,
-            stop_timestamp=datetime.fromisoformat(timestamp.replace('Z', '+00:00')), # Adapta para datetime com fuso horário
-            reason=reason
+        existing_transaction = db_session.query(Transaction).filter(Transaction.id == transaction_id).first()
+
+        if not existing_transaction:
+            logger.warning(f"StopTransaction received for unknown Transaction ID: {transaction_id}")
+            return call_result.StopTransaction(id_tag_info={"status": AuthorizationStatus.invalid})
+
+        if existing_transaction.status == "Completed":
+            logger.warning(f"StopTransaction received for already completed transaction {transaction_id}. Ignoring.")
+            return call_result.StopTransaction(id_tag_info={"status": AuthorizationStatus.accepted})
+
+        energy_transfered = float(meter_stop) - existing_transaction.meter_start
+        if energy_transfered < 0:
+            logger.warning(
+                f"Negative energy transfered for transaction {transaction_id}. Meter start: {existing_transaction.meter_start}, Meter stop: {meter_stop}")
+            energy_transfered = 0.0
+
+        updated_transaction = await transaction_service.stop_transaction(
+            transaction_id=str(existing_transaction.transaction_id),
+            meter_stop=float(meter_stop),
+            energy_transfered=energy_transfered
         )
-        # Retorna Accepted para o Charge Point
-        return call_result.StopTransaction()
+
+        logger.info(
+            f"Transaction {updated_transaction.transaction_id} stopped. Energy: {updated_transaction.energy_transfered} kWh.")
+        return call_result.StopTransaction(id_tag_info={"status": AuthorizationStatus.accepted})
+    except ValueError as ve:
+        logger.error(f"Validation error in StopTransaction for {charge_point.id}: {ve}")
+        return call_result.StopTransaction(id_tag_info={"status": AuthorizationStatus.invalid})
     except Exception as e:
-        logger.error(f"Error handling StopTransaction for {charge_point_id}: {e}", exc_info=True)
-        return call_result.StopTransaction() # Em caso de erro, ainda responde
+        logger.error(f"Error handling StopTransaction for {charge_point.id}: {e}", exc_info=True)
+        return call_result.StopTransaction(id_tag_info={"status": AuthorizationStatus.invalid})
     finally:
         db_session.close()
+
+
+@on(Action.meter_values)
+async def on_meter_values(charge_point: OCPPCp, connector_id: int, transaction_id: int, meter_value: list, **kwargs):
+    """
+    Handle MeterValues from a Charge Point.
+    This provides periodic meter readings during a transaction.
+    """
+    logger.debug(f"MeterValues from {charge_point.id} - Conn {connector_id}, Tx {transaction_id}: {meter_value}")
+
+    return call_result.MeterValues()

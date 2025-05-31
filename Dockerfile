@@ -31,5 +31,6 @@ EXPOSE 8001
 EXPOSE 9000
 
 # Comando para rodar a aplicação quando o contêiner inicia.
-# O comando é executado do WORKDIR /app, então o caminho para main.py é /app/ev_charging_system/main.py.
-CMD ["python", "ev_charging_system/main.py"]
+# Agora, o Uvicorn é o ponto de entrada, servindo a aplicação 'app' do módulo 'ev_charging_system.main'.
+# Não usamos 'reload=True' aqui, pois isso é mais para desenvolvimento local e pode causar problemas em Docker.
+CMD ["uvicorn", "ev_charging_system.main:app", "--host", "0.0.0.0", "--port", "8000"]
