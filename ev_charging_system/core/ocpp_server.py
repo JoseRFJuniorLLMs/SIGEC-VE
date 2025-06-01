@@ -4,7 +4,7 @@ import asyncio
 import logging
 import websockets
 from typing import Dict, Optional, Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from ocpp.routing import on
 
 # OCPP 2.0.1 imports
@@ -32,245 +32,268 @@ class CustomChargePoint(OCPPCp):
         # Call parent constructor with only the required arguments
         super().__init__(charge_point_id, connection)
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        self.logger.info(f"CustomChargePoint {self.id} initialized. Route map: {list(self.route_map.keys())}")
+        self.logger.info(f"CustomChargePoint {self.id} initialized. Handlers registered.")
+
+    async def _handle_call(self, msg):
+        action = msg.action
+        unique_id = msg.unique_id
+        self.logger.info(f"{self.id}: received message {msg}")
+
+        handler = self._route_map.get(action)
+        if handler:
+            try:
+                response_payload = await handler(self, **msg.payload)
+                response = ocpp_call_result_v201.RPCMethod(
+                    unique_id=unique_id,
+                    action=action,
+                    payload=response_payload
+                )
+                self.logger.info(f"Response for {action}: {response_payload}")
+                await self.send_response(response)
+            except ProtocolError as e:
+                self.logger.error(f"Protocol error handling {action} from {self.id}: {e}")
+                error_msg = ocpp_call_v201.RPCError(
+                    unique_id=unique_id,
+                    error_code=ocpp_enums_v201.ErrorEnumType.protocol_error,
+                    error_description=str(e),
+                    error_details={}
+                )
+                await self.send_error(error_msg)
+            except NotSupportedError as e:
+                self.logger.error(f"Action '{action}' not supported by {self.id}: {e}")
+                error_msg = ocpp_call_v201.RPCError(
+                    unique_id=unique_id,
+                    error_code=ocpp_enums_v201.ErrorEnumType.not_supported,
+                    error_description=str(e),
+                    error_details={}
+                )
+                await self.send_error(error_msg)
+            except Exception as e:
+                self.logger.error(f"Error while handling request '{msg}'")
+                self.logger.exception(e)
+                error_msg = ocpp_call_v201.RPCError(
+                    unique_id=unique_id,
+                    error_code=ocpp_enums_v201.ErrorEnumType.internal_error,
+                    error_description=f"An unexpected error occurred. {e}",
+                    error_details={}
+                )
+                await self.send_error(error_msg)
+        else:
+            self.logger.warning(f"No handler registered for action '{action}'. Sending NotSupported error.")
+            error_msg = ocpp_call_v201.RPCError(
+                unique_id=unique_id,
+                error_code=ocpp_enums_v201.ErrorEnumType.not_supported,
+                error_description=f"Action '{action}' is not supported.",
+                error_details={}
+            )
+            await self.send_error(error_msg)
+
+    async def send_response(self, call_result):
+        """
+        Sends a CallResult to the connected charge point.
+        """
+        response_json = json.dumps([
+            3,
+            call_result.unique_id,
+            call_result.payload
+        ])
+        self.logger.info(f"{self.id}: send {response_json}")
+        await self._connection.send(response_json)
+
+    async def send_error(self, call_error):
+        """
+        Sends a CallError to the connected charge point.
+        """
+        error_json = json.dumps([
+            4,
+            call_error.unique_id,
+            call_error.error_code.value,
+            call_error.error_description,
+            call_error.error_details
+        ])
+        self.logger.info(f"{self.id}: send {error_json}")
+        await self._connection.send(error_json)
 
     @on('BootNotification')
-    async def on_boot_notification(self, **kwargs):
-        """Handle BootNotification from charge point"""
+    async def on_boot_notification(self,
+            charging_station: ocpp_datatypes_v201.ChargingStationType,
+            reason: ocpp_enums_v201.BootReasonEnumType,
+            **kwargs
+    ):
         self.logger.info(f"📡 BootNotification received from {self.id}")
         self.logger.info(f"Boot data: {kwargs}")
-
-        # Extract boot notification data
-        charging_station = kwargs.get('charging_station', {})
-        reason = kwargs.get('reason', 'Unknown')
-
         self.logger.info(f"Charging Station Info: {charging_station}")
         self.logger.info(f"Boot Reason: {reason}")
 
-        # Return BootNotificationResponse
         self.logger.info(f"BootNotification handler for {self.id} is preparing response.")
-        payload = ocpp_call_result_v201.BootNotificationPayload(
+        payload = ocpp_call_result_v201.BootNotification(
             current_time=datetime.utcnow().isoformat(),
-            interval=300,  # Heartbeat interval in seconds
-            status=ocpp_enums_v201.RegistrationStatusType.accepted
+            interval=300,
+            status=ocpp_enums_v201.RegistrationStatusEnumType.accepted
         )
-
-        # Fix: Use vars() or __dict__ instead of to_json()
-        try:
-            payload_dict = vars(payload)  # or payload.__dict__
-            self.logger.info(f"BootNotification handler for {self.id} returning payload: {payload_dict}")
-        except Exception as e:
-            self.logger.info(
-                f"BootNotification handler for {self.id} returning payload (dict conversion failed): {payload}")
-
         return payload
 
     @on('Heartbeat')
     async def on_heartbeat(self, **kwargs):
-        """Handle Heartbeat from charge point"""
-        self.logger.debug(f"💓 Heartbeat received from {self.id}")
-
-        return ocpp_call_result_v201.HeartbeatPayload(
+        self.logger.debug(f"💖 Heartbeat received from {self.id}")
+        return ocpp_call_result_v201.Heartbeat(
             current_time=datetime.utcnow().isoformat()
         )
 
     @on('StatusNotification')
-    async def on_status_notification(self, **kwargs):
-        """Handle StatusNotification from charge point"""
-        timestamp = kwargs.get('timestamp')
-        connector_status = kwargs.get('connector_status')
-        evse_id = kwargs.get('evse_id')
-        connector_id = kwargs.get('connector_id')
-
-        self.logger.info(f"🔌 Status update from {self.id}")
-        self.logger.info(f"EVSE {evse_id}, Connector {connector_id}: {connector_status} at {timestamp}")
-
-        # Update database with status
-        await self._update_connector_status(self.id, evse_id, connector_id, connector_status)
-
-        return ocpp_call_result_v201.StatusNotificationPayload()
+    async def on_status_notification(self,
+            connector_id: int,
+            connector_status: ocpp_enums_v201.ConnectorStatusEnumType,
+            evse_id: int,
+            **kwargs
+    ):
+        self.logger.info(f"📊 StatusNotification received from {self.id}: Connector {connector_id} on EVSE {evse_id} is {connector_status}")
+        # Lógica para atualizar o status do conector no seu banco de dados, se aplicável
+        # await self._update_connector_status(self.id, evse_id, connector_id, connector_status) # Temporarily commented out
+        return ocpp_call_result_v201.StatusNotification()
 
     @on('TransactionEvent')
-    async def on_transaction_event(self, **kwargs):
-        """Handle TransactionEvent from charge point"""
-        event_type = kwargs.get('event_type')
-        timestamp = kwargs.get('timestamp')
-        transaction_info = kwargs.get('transaction_info', {})
-        trigger_reason = kwargs.get('trigger_reason')
-
-        transaction_id = transaction_info.get('transaction_id')
-
-        self.logger.info(f"🔄 Transaction event from {self.id}")
-        self.logger.info(f"Event: {event_type}, Transaction: {transaction_id}")
-        self.logger.info(f"Trigger: {trigger_reason}, Time: {timestamp}")
-
-        # Process transaction event
-        await self._process_transaction_event(
-            self.id, event_type, transaction_info, trigger_reason, timestamp
-        )
-
-        return ocpp_call_result_v201.TransactionEventPayload()
+    async def on_transaction_event(self,
+            event_type: ocpp_enums_v201.TransactionEventEnumType,
+            timestamp: str,
+            trigger_reason: ocpp_enums_v201.TriggerReasonEnumType,
+            seq_no: int,
+            transaction_info: ocpp_datatypes_v201.TransactionType,
+            **kwargs
+    ):
+        self.logger.info(f"🔄 TransactionEvent received from {self.id}: Type={event_type}, Trigger={trigger_reason}, TransactionID={transaction_info.transaction_id}")
+        # Lógica para processar eventos de transação (início, atualização, fim)
+        # await self._process_transaction_event( # Temporarily commented out
+        #     self.id, event_type, transaction_info, trigger_reason, timestamp
+        # )
+        return ocpp_call_result_v201.TransactionEvent()
 
     @on('Authorize')
-    async def on_authorize(self, **kwargs):
-        """Handle Authorize request from charge point"""
-        id_token = kwargs.get('id_token', {})
-        token_value = id_token.get('id_token', 'Unknown')
-        token_type = id_token.get('type', 'Unknown')
-
-        self.logger.info(f"🔐 Authorization request from {self.id}")
-        self.logger.info(f"Token: {token_value} (Type: {token_type})")
-
-        # Verify token authorization
-        is_authorized = await self._verify_token_authorization(token_value)
-
+    async def on_authorize(self,
+            id_token: ocpp_datatypes_v201.IdTokenType,
+            **kwargs
+    ):
+        self.logger.info(f"🔑 Authorize request received from {self.id} for ID Token: {id_token.id_token}")
+        # Lógica para autorizar o ID Token
+        # is_authorized = await self._verify_token_authorization(id_token.id_token) # Temporarily commented out
+        is_authorized = True # Assume authorized for testing
         id_token_info = ocpp_datatypes_v201.IdTokenInfoType(
-            status=ocpp_enums_v201.AuthorizationStatusType.accepted if is_authorized  # Fixed: AuthorizationStatusType
-            else ocpp_enums_v201.AuthorizationStatusType.invalid
+            status=ocpp_enums_v201.AuthorizationStatusEnumType.accepted if is_authorized
+            else ocpp_enums_v201.AuthorizationStatusEnumType.invalid
         )
-
-        return ocpp_call_result_v201.AuthorizePayload(
+        return ocpp_call_result_v201.Authorize(
             id_token_info=id_token_info
         )
 
     @on('MeterValues')
-    async def on_meter_values(self, **kwargs):
-        """Handle MeterValues from charge point"""
-        evse_id = kwargs.get('evse_id')
-        meter_value = kwargs.get('meter_value', [])
-
-        self.logger.info(f"⚡ Meter values from {self.id}, EVSE {evse_id}")
-
-        for mv in meter_value:
-            timestamp = mv.get('timestamp')
-            sampled_value = mv.get('sampled_value', [])
-
-            for sv in sampled_value:
-                value = sv.get('value')
-                measurand = sv.get('measurand', 'Unknown')
-                unit = sv.get('unit', 'Unknown')
-
-                self.logger.debug(f"📊 {measurand}: {value} {unit} at {timestamp}")
-
-        # Store meter values
-        await self._store_meter_values(self.id, evse_id, meter_value)
-
-        return ocpp_call_result_v201.MeterValuesPayload()
+    async def on_meter_values(self,
+            evse_id: int,
+            meter_value: list[ocpp_datatypes_v201.MeterValueType],
+            **kwargs
+    ):
+        self.logger.info(f"⚡ MeterValues received from {self.id} for EVSE {evse_id}. Values: {meter_value}")
+        # Lógica para processar e armazenar os valores do medidor
+        # await self._store_meter_values(self.id, evse_id, meter_value) # Temporarily commented out
+        return ocpp_call_result_v201.MeterValues()
 
     @on('DataTransfer')
-    async def on_data_transfer(self, **kwargs):
-        """Handle DataTransfer from charge point"""
-        vendor_id = kwargs.get('vendor_id')
-        message_id = kwargs.get('message_id')
-        data = kwargs.get('data')
-
-        self.logger.info(f"📡 Data transfer from {self.id}")
-        self.logger.info(f"Vendor: {vendor_id}, Message: {message_id}")
-        self.logger.info(f"Data: {data}")
-
-        return ocpp_call_result_v201.DataTransferPayload(
-            status=ocpp_enums_v201.DataTransferStatusType.accepted  # Fixed: DataTransferStatusType
+    async def on_data_transfer(self,
+            vendor_id: str,
+            message_id: Optional[str] = None,
+            data: Optional[str] = None,
+            **kwargs
+    ):
+        self.logger.info(f"📦 DataTransfer received from {self.id} (Vendor: {vendor_id}, MessageId: {message_id}): {data}")
+        # Lógica para lidar com transferências de dados personalizadas
+        return ocpp_call_result_v201.DataTransfer(
+            status=ocpp_enums_v201.DataTransferStatusEnumType.accepted
         )
 
     @on('FirmwareStatusNotification')
-    async def on_firmware_status_notification(self, **kwargs):
-        """Handle FirmwareStatusNotification from charge point"""
-        status = kwargs.get('status')
-        request_id = kwargs.get('request_id')
-
-        self.logger.info(f"🔧 Firmware status from {self.id}: {status}")
-        if request_id:
-            self.logger.info(f"Request ID: {request_id}")
-
-        return ocpp_call_result_v201.FirmwareStatusNotificationPayload()
+    async def on_firmware_status_notification(self,
+            status: ocpp_enums_v201.FirmwareStatusEnumType,
+            **kwargs
+    ):
+        self.logger.info(f"🔄 FirmwareStatusNotification received from {self.id}: {status}")
+        return ocpp_call_result_v201.FirmwareStatusNotification()
 
     @on('LogStatusNotification')
-    async def on_log_status_notification(self, **kwargs):
-        """Handle LogStatusNotification from charge point"""
-        status = kwargs.get('status')
-        request_id = kwargs.get('request_id')
+    async def on_log_status_notification(self,
+            status: ocpp_enums_v201.LogStatusEnumType,
+            **kwargs
+    ):
+        self.logger.info(f"📝 LogStatusNotification received from {self.id}: {status}")
+        return ocpp_call_result_v201.LogStatusNotification()
 
-        self.logger.info(f"📝 Log status from {self.id}: {status}")
-        if request_id:
-            self.logger.info(f"Request ID: {request_id}")
-
-        return ocpp_call_result_v201.LogStatusNotificationPayload()
-
-    # Helper methods (moved from ocpp_handlers.py)
+    # Helper methods (moved from ocpp_handlers.py in the previous full version)
     async def _update_connector_status(self, charge_point_id: str, evse_id: int,
                                        connector_id: int, status: str):
         """Update connector status in database"""
-        try:
-            # Import here to avoid circular imports
-            from ev_charging_system.data.database import get_db
-            from ev_charging_system.data.repositories import ChargePointRepository
-
-            db_session = next(get_db())
-            try:
-                cp_repo = ChargePointRepository(db_session)
-                # Update connector status logic here
-                self.logger.debug(f"Updated connector status for {charge_point_id}")
-            finally:
-                db_session.close()
-        except Exception as e:
-            self.logger.error(f"Error updating connector status: {e}")
+        self.logger.info(f"DATABASE_MOCK: Updating connector status for {charge_point_id} to {status}")
+        # try:
+        #     from ev_charging_system.data.database import get_db
+        #     from ev_charging_system.data.repositories import ChargePointRepository
+        #     db_session = next(get_db())
+        #     try:
+        #         cp_repo = ChargePointRepository(db_session)
+        #         # Update connector status logic here
+        #         self.logger.debug(f"Updated connector status for {charge_point_id}")
+        #     finally:
+        #         db_session.close()
+        # except Exception as e:
+        #     self.logger.error(f"Error updating connector status: {e}")
 
     async def _process_transaction_event(self, charge_point_id: str, event_type: str,
                                          transaction_info: Dict, trigger_reason: str,
                                          timestamp: str):
         """Process transaction event"""
-        try:
-            transaction_id = transaction_info.get('transaction_id')
-
-            if event_type == 'Started':
-                self.logger.info(f"Transaction {transaction_id} started on {charge_point_id}")
-            elif event_type == 'Updated':
-                self.logger.info(f"Transaction {transaction_id} updated on {charge_point_id}")
-            elif event_type == 'Ended':
-                self.logger.info(f"Transaction {transaction_id} ended on {charge_point_id}")
-
-            # Store transaction data in database
-            from ev_charging_system.data.database import get_db
-            from ev_charging_system.data.repositories import TransactionRepository
-
-            db_session = next(get_db())
-            try:
-                tx_repo = TransactionRepository(db_session)
-                # Transaction processing logic here
-                self.logger.debug(f"Processed transaction event for {charge_point_id}")
-            finally:
-                db_session.close()
-
-        except Exception as e:
-            self.logger.error(f"Error processing transaction event: {e}")
+        self.logger.info(f"DATABASE_MOCK: Processing transaction event for {charge_point_id}, type {event_type}")
+        # try:
+        #     transaction_id = transaction_info.get('transaction_id')
+        #     if event_type == 'Started':
+        #         self.logger.info(f"Transaction {transaction_id} started on {charge_point_id}")
+        #     elif event_type == 'Updated':
+        #         self.logger.info(f"Transaction {transaction_id} updated on {charge_point_id}")
+        #     elif event_type == 'Ended':
+        #         self.logger.info(f"Transaction {transaction_id} ended on {charge_point_id}")
+        #     from ev_charging_system.data.database import get_db
+        #     from ev_charging_system.data.repositories import TransactionRepository
+        #     db_session = next(get_db())
+        #     try:
+        #         tx_repo = TransactionRepository(db_session)
+        #         # Transaction processing logic here
+        #         self.logger.debug(f"Processed transaction event for {charge_point_id}")
+        #     finally:
+        #         db_session.close()
+        # except Exception as e:
+        #     self.logger.error(f"Error processing transaction event: {e}")
 
     async def _verify_token_authorization(self, token_value: str) -> bool:
         """Verify if token is authorized"""
-        try:
-            # Import here to avoid circular imports
-            from ev_charging_system.data.database import get_db
-            from ev_charging_system.data.repositories import UserRepository
-
-            db_session = next(get_db())
-            try:
-                user_repo = UserRepository(db_session)
-                # Token verification logic here
-                # For now, return True for testing
-                return True
-            finally:
-                db_session.close()
-        except Exception as e:
-            self.logger.error(f"Error verifying token: {e}")
-            return False
+        self.logger.info(f"DATABASE_MOCK: Verifying token authorization for {token_value}")
+        # try:
+        #     from ev_charging_system.data.database import get_db
+        #     from ev_charging_system.data.repositories import UserRepository
+        #     db_session = next(get_db())
+        #     try:
+        #         user_repo = UserRepository(db_session)
+        #         # Token verification logic here
+        #         return True
+        #     finally:
+        #         db_session.close()
+        # except Exception as e:
+        #     self.logger.error(f"Error verifying token: {e}")
+        return True # Always return True for testing when mocked
 
     async def _store_meter_values(self, charge_point_id: str, evse_id: int,
                                   meter_values: list):
         """Store meter values in database"""
-        try:
-            # Store meter values logic here
-            self.logger.debug(f"Stored meter values for {charge_point_id}")
-        except Exception as e:
-            self.logger.error(f"Error storing meter values: {e}")
+        self.logger.info(f"DATABASE_MOCK: Storing meter values for {charge_point_id}")
+        # try:
+        #     # Store meter values logic here
+        #     self.logger.debug(f"Stored meter values for {charge_point_id}")
+        # except Exception as e:
+        #     self.logger.error(f"Error storing meter values: {e}")
 
 
 class OCPPServer:
@@ -331,7 +354,6 @@ class OCPPServer:
             websocket: The WebSocket connection
             path: URL path containing the Charge Point ID (e.g., '/CP001')
         """
-        # Extract Charge Point ID from path
         charge_point_id = path.strip('/')
         if not charge_point_id:
             logger.warning("Connection attempt with empty charge point ID. Closing connection.")
@@ -341,41 +363,33 @@ class OCPPServer:
         logger.info(f"🔌 New connection from Charge Point: {charge_point_id}")
         logger.info(f"Subprotocol selected: {websocket.subprotocol}")
 
-        # Check if already connected
         if charge_point_id in connected_charge_points:
             logger.warning(f"Charge Point {charge_point_id} already connected. Replacing connection.")
             await self._disconnect_charge_point(charge_point_id)
 
         try:
-            # --- Instanciar CustomChargePoint com argumentos corretos ---
             charge_point = CustomChargePoint(
                 charge_point_id,
                 websocket
             )
             logger.info(f"OCPP server: CustomChargePoint instance created for {charge_point_id}.")
 
-            # Register the charge point
             connected_charge_points[charge_point_id] = charge_point
             logger.info(f"✅ Registered Charge Point: {charge_point_id}")
 
-            # Update database status to online
-            await self._update_cp_status_in_db(charge_point_id, "Online")
+            # Update database status to online - TEMPORARILY COMMENTED OUT
+            # await self._update_cp_status_in_db(charge_point_id, "Online")
 
-            # Start the charge point message processing loop
             logger.info(f"🚀 Starting message processing for {charge_point_id}")
             await charge_point.start() # This call blocks until the connection is closed
 
         except websockets.exceptions.ConnectionClosedOK:
             logger.info(f"Charge Point {charge_point_id} disconnected normally (ConnectionClosedOK).")
-
         except websockets.exceptions.ConnectionClosed as e:
             logger.warning(f"Charge Point {charge_point_id} connection closed: {e}")
-
         except Exception as e:
             logger.error(f"Error with Charge Point {charge_point_id}: {e}", exc_info=True)
-
         finally:
-            # Clean up when connection is lost
             logger.info(f"OCPP server: Entering finally block for {charge_point_id}. Disconnecting charge point.")
             await self._disconnect_charge_point(charge_point_id)
 
@@ -387,13 +401,11 @@ class OCPPServer:
 
         logger.info(f"🔌 Disconnecting Charge Point {charge_point_id}")
 
-        # Remove from connected list
         cp_instance = connected_charge_points.pop(charge_point_id, None)
 
-        # Update database status to offline
-        await self._update_cp_status_in_db(charge_point_id, "Offline")
+        # Update database status to offline - TEMPORARILY COMMENTED OUT
+        # await self._update_cp_status_in_db(charge_point_id, "Offline")
 
-        # Close the connection if it's still open
         if cp_instance and hasattr(cp_instance, '_connection'):
             try:
                 logger.info(f"OCPP server: Attempting to close websocket for {charge_point_id}.")
@@ -407,29 +419,24 @@ class OCPPServer:
 
     async def _update_cp_status_in_db(self, charge_point_id: str, status: str):
         """Update charge point status in database."""
-        try:
-            # Import database components
-            from ev_charging_system.data.database import get_db
-            from ev_charging_system.data.repositories import ChargePointRepository, TransactionRepository, \
-                UserRepository
-            from ev_charging_system.business_logic.device_management_service import DeviceManagementService
-
-            db_session = next(get_db())
-            try:
-                cp_repo = ChargePointRepository(db_session)
-                tx_repo = TransactionRepository(db_session)
-                user_repo = UserRepository(db_session)
-
-                device_service = DeviceManagementService(cp_repo, tx_repo, user_repo)
-                device_service.update_charge_point_status(charge_point_id, status)
-
-                logger.debug(f"Updated Charge Point {charge_point_id} status to {status} in database")
-
-            finally:
-                db_session.close()
-
-        except Exception as e:
-            logger.error(f"Error updating CP {charge_point_id} status in DB: {e}", exc_info=True)
+        self.logger.info(f"DATABASE_MOCK: Updating CP {charge_point_id} status to {status}")
+        # try:
+        #     from ev_charging_system.data.database import get_db
+        #     from ev_charging_system.data.repositories import ChargePointRepository, TransactionRepository, \
+        #         UserRepository
+        #     from ev_charging_system.business_logic.device_management_service import DeviceManagementService
+        #     db_session = next(get_db())
+        #     try:
+        #         cp_repo = ChargePointRepository(db_session)
+        #         tx_repo = TransactionRepository(db_session)
+        #         user_repo = UserRepository(db_session)
+        #         device_service = DeviceManagementService(cp_repo, tx_repo, user_repo)
+        #         device_service.update_charge_point_status(charge_point_id, status)
+        #         logger.debug(f"Updated Charge Point {charge_point_id} status to {status} in database")
+        #     finally:
+        #         db_session.close()
+        # except Exception as e:
+        #     logger.error(f"Error updating CP {charge_point_id} status in DB: {e}", exc_info=True)
 
     def get_connected_charge_points(self) -> Dict[str, OCPPCp]:
         """Get all currently connected charge points."""
@@ -448,14 +455,6 @@ class OCPPServer:
 async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -> dict:
     """
     Send an OCPP command to a specific charge point.
-
-    Args:
-        charge_point_id: Target charge point ID
-        command_name: OCPP command name (e.g., "RemoteStartTransaction")
-        **kwargs: Command parameters specific to the OCPP 2.0.1 payload.
-
-    Returns:
-        Dict with command result
     """
     if charge_point_id not in connected_charge_points:
         logger.warning(f"Charge Point {charge_point_id} not connected. Cannot send {command_name}")
@@ -472,7 +471,6 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
 
         response = None
 
-        # Command mapping for OCPP 2.0.1
         if command_name == "RemoteStartTransaction":
             id_token_value = kwargs.get("id_tag")
             connector_id = kwargs.get("connector_id", 1)
@@ -483,10 +481,10 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
 
             id_token = ocpp_datatypes_v201.IdTokenType(
                 id_token=id_token_value,
-                type=ocpp_enums_v201.IdTokenType.iso14443  # Fixed: IdTokenType instead of IdTokenEnumType
+                type=ocpp_enums_v201.IdTokenEnumType.iso14443
             )
 
-            payload = ocpp_call_v201.RemoteStartTransactionPayload(
+            payload = ocpp_call_v201.RemoteStartTransaction(
                 id_token=id_token,
                 remote_start_id=remote_start_id,
                 evse_id=connector_id
@@ -498,7 +496,7 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
             if not transaction_id:
                 raise ValueError("transaction_id is required for RemoteStopTransaction")
 
-            payload = ocpp_call_v201.RemoteStopTransactionPayload(
+            payload = ocpp_call_v201.RemoteStopTransaction(
                 transaction_id=transaction_id
             )
             response = await cp.remote_stop_transaction(payload)
@@ -507,7 +505,7 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
             evse_id = kwargs.get("connector_id", 1)
             connector_id = kwargs.get("connector_id", 1)
 
-            payload = ocpp_call_v201.UnlockConnectorPayload(
+            payload = ocpp_call_v201.UnlockConnector(
                 evse_id=evse_id,
                 connector_id=connector_id
             )
@@ -517,11 +515,11 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
             type_str = kwargs.get("type", "Soft")
 
             try:
-                reset_type_enum = ocpp_enums_v201.ResetType(type_str.lower())  # Fixed: ResetType instead of ResetEnumType
+                reset_type_enum = ocpp_enums_v201.ResetEnumType(type_str.lower())
             except ValueError:
                 raise ValueError(f"Invalid Reset type: {type_str}. Must be 'Hard' or 'Soft'.")
 
-            payload = ocpp_call_v201.ResetPayload(type=reset_type_enum)
+            payload = ocpp_call_v201.Reset(type=reset_type_enum)
             response = await cp.reset(payload)
 
         elif command_name == "GetVariables":
@@ -536,7 +534,7 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
                     )
                 )
 
-            payload = ocpp_call_v201.GetVariablesPayload(
+            payload = ocpp_call_v201.GetVariables(
                 get_variable_data=get_variable_data
             )
             response = await cp.get_variables(payload)
@@ -554,13 +552,13 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
                 attribute_value=str(value)
             )
 
-            payload = ocpp_call_v201.SetVariablesPayload(
+            payload = ocpp_call_v201.SetVariables(
                 set_variable_data=[set_variable_data]
             )
             response = await cp.set_variables(payload)
 
         elif command_name == "ClearCache":
-            payload = ocpp_call_v201.ClearCachePayload()
+            payload = ocpp_call_v201.ClearCache()
             response = await cp.clear_cache(payload)
 
         elif command_name == "DataTransfer":
@@ -571,7 +569,7 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
             if not vendor_id or not message_id:
                 raise ValueError("vendor_id and message_id are required for DataTransfer")
 
-            payload = ocpp_call_v201.DataTransferPayload(
+            payload = ocpp_call_v201.DataTransfer(
                 vendor_id=vendor_id,
                 message_id=message_id,
                 data=data
@@ -586,11 +584,11 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
                 raise ValueError("requested_message is required for TriggerMessage")
 
             try:
-                requested_message_enum = ocpp_enums_v201.MessageTriggerType(requested_message_str)  # Fixed: MessageTriggerType
+                requested_message_enum = ocpp_enums_v201.MessageTriggerEnumType(requested_message_str)
             except ValueError:
                 raise ValueError(f"Invalid requested_message: {requested_message_str}")
 
-            payload = ocpp_call_v201.TriggerMessagePayload(
+            payload = ocpp_call_v201.TriggerMessage(
                 requested_message=requested_message_enum,
                 evse_id=evse_id
             )
@@ -606,12 +604,18 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
 
         logger.info(f"✅ Response from {charge_point_id} for {command_name}: {response}")
 
-        # Convert response to serializable format
-        return {
-            "status": "success",
-            "response": response.__dict__ if hasattr(response, '__dict__') else str(response),
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        if hasattr(response, 'to_json'):
+            return {
+                "status": "success",
+                "response": response.to_json(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        else:
+            return {
+                "status": "success",
+                "response": response.__dict__ if hasattr(response, '__dict__') else str(response),
+                "timestamp": datetime.utcnow().isoformat()
+            }
 
     except NotSupportedError as e:
         logger.warning(f"Command {command_name} not supported by {charge_point_id}: {e}")
@@ -646,13 +650,6 @@ async def send_ocpp_command(charge_point_id: str, command_name: str, **kwargs) -
 async def broadcast_command(command_name: str, **kwargs) -> Dict[str, dict]:
     """
     Broadcast a command to all connected charge points.
-
-    Args:
-        command_name: OCPP command name
-        **kwargs: Command parameters
-
-    Returns:
-        Dict mapping charge_point_id to response
     """
     if not connected_charge_points:
         logger.warning("No charge points connected for broadcast")
@@ -663,12 +660,10 @@ async def broadcast_command(command_name: str, **kwargs) -> Dict[str, dict]:
     results = {}
     tasks = []
 
-    # Create tasks for all connected charge points
     for cp_id in list(connected_charge_points.keys()):
         task = send_ocpp_command(cp_id, command_name, **kwargs)
         tasks.append((cp_id, task))
 
-    # Execute all tasks concurrently
     for cp_id, task in tasks:
         try:
             result = await task
@@ -685,14 +680,15 @@ async def broadcast_command(command_name: str, **kwargs) -> Dict[str, dict]:
 
 
 # Global server instance
-ocpp_server = OCPPServer()
+ocpp_server = OCPPServer("0.0.0.0", 9000)
 
 
 # Compatibility functions for existing code
 async def start_ocpp_server(host: str = "0.0.0.0", port: int = 9000):
     """Start the OCPP server (compatibility function)."""
     global ocpp_server
-    ocpp_server = OCPPServer(host, port)
+    if ocpp_server.host != host or ocpp_server.port != port or not ocpp_server._running:
+        ocpp_server = OCPPServer(host, port)
     await ocpp_server.start()
 
 
@@ -705,18 +701,14 @@ def is_charge_point_connected(charge_point_id: str) -> bool:
     """Check if a charge point is connected (compatibility function)."""
     return charge_point_id in connected_charge_points
 
-# ev_charging_system/core/ocpp_server.py (ADICIONE ISSO NO FINAL DO ARQUIVO)
+# ev_charging_system/core/ocpp_server.py
 
 if __name__ == '__main__':
-    # Configuração de logging para o caso de execução direta
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
 
     async def main_server():
-        # A instância global `ocpp_server` já foi criada.
-        # Agora, basta chamar o método start dela.
-        # Ou você pode usar a função de compatibilidade que já existe:
-        await start_ocpp_server() # Chama a função que inicia o servidor global
+        await start_ocpp_server()
 
     try:
         asyncio.run(main_server())

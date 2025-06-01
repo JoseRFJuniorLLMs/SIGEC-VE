@@ -10,9 +10,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger('ev_simulator')
 
 # URL da sua API RESTful do CSMS (main.py ou ocpp_server.py)
-# A porta padrão do FastAPI/Uvicorn é 8001.
+# A porta padrão do FastAPI/Uvicorn é 8000.
 # Mantenha esta URL consistente com a porta em que seu main.py realmente roda.
-CSMS_API_URL = "http://localhost:8001/api"
+CSMS_API_URL = "http://localhost:8000/api"
 
 
 async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, user_id: str):
