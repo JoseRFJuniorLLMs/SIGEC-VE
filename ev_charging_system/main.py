@@ -578,5 +578,5 @@ async def health_check():
 
 # --- Execução da Aplicação ---
 if __name__ == "__main__":
-    logger.info("INFO: Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    logger.info("INFO: Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -10,8 +10,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger('ev_simulator')
 
 # URL da sua API RESTful do CSMS (main.py ou ocpp_server.py)
-# A porta padrão do FastAPI/Uvicorn é 8001
-CSMS_API_URL = "http://localhost:8000/api"
+# A porta padrão do FastAPI/Uvicorn é 8001.
+# Mantenha esta URL consistente com a porta em que seu main.py realmente roda.
+CSMS_API_URL = "http://localhost:8001/api"
 
 
 async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, user_id: str):
@@ -25,50 +26,56 @@ async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, 
 
     try:
         # 1. Simular "Plug-in" do VE (comunicação EV -> CSMS via API)
-        # O EV solicita ao CSMS para iniciar uma transação no CP
-        start_charging_url = f"{CSMS_API_URL}/charge_points/{charge_point_id}/start_transaction"
-        start_charging_payload = {
-            "connector_id": connector_id,
-            "id_token": user_id,  # Usando user_id como id_token para simplificar
-            "remote_start": True # Indica que é um início remoto iniciado pelo CSMS
+        # O EV solicita ao CSMS o início de uma transação.
+        # Rota correta agora é /api/ev_events/plug_in
+        plug_in_url = f"{CSMS_API_URL}/ev_events/plug_in"
+        plug_in_payload = {
+            "ev_id": user_id,
+            "charge_point_id": charge_point_id,
+            "connector_id": connector_id
         }
-        logger.info(f"VE '{user_id}': Solicitando início de transação ao CSMS para CP '{charge_point_id}'...")
+
+        logger.info(f"VE '{user_id}': Solicitando início de transação ao CSMS para CP '{charge_point_id}' via {plug_in_url}...")
         async with aiohttp.ClientSession() as session:
-            async with session.post(start_charging_url, json=start_charging_payload) as response:
+            async with session.post(plug_in_url, json=plug_in_payload) as response:
                 response.raise_for_status()  # Levanta uma exceção para erros HTTP (4xx ou 5xx)
-                start_response = await response.json()
-                transaction_id = start_response.get("transaction_id")
+                plug_in_response_data = await response.json()
+                logger.info(f"VE '{user_id}': Resposta da API de plug-in: {plug_in_response_data}")
+
+                # A API retorna um "transactionId" temporário ou o ID da transação
+                transaction_id = plug_in_response_data.get("transactionId")
                 if not transaction_id:
-                    logger.error(f"VE '{user_id}': CSMS não retornou transaction_id. Resposta: {start_response}")
-                    return
+                    logger.error(f"VE '{user_id}': Resposta da API não retornou 'transactionId'.")
+                    raise ValueError("Transaction ID not returned by API from plug-in event.")
 
-        logger.info(f"VE '{user_id}': Transação {transaction_id} iniciada no CP '{charge_point_id}'. Carregando...")
-
-        # 2. Simular carregamento ativo
-        # Durante o carregamento real, o CP enviaria MeterValues. Aqui, o VE apenas espera.
+        # 2. Simular carregamento ativo (espera)
+        logger.info(f"VE '{user_id}': Carregando por {charging_time_seconds} segundos (ID Transação: {transaction_id})...")
         await asyncio.sleep(charging_time_seconds)
+        logger.info(f"VE '{user_id}': Carregamento concluído. Consumo simulado: {simulated_kwh_consumption:.2f} kWh.")
 
         # 3. Simular "Unplug" do VE (comunicação EV -> CSMS via API)
-        # O EV solicita ao CSMS para parar a transação
-        stop_charging_url = f"{CSMS_API_URL}/charge_points/{charge_point_id}/stop_transaction"
-        stop_charging_payload = {
-            "transaction_id": transaction_id,
-            "remote_stop": True # Indica que é uma parada remota iniciada pelo CSMS
+        # O EV solicita ao CSMS o fim da transação.
+        # Rota correta agora é /api/ev_events/unplug
+        unplug_url = f"{CSMS_API_URL}/ev_events/unplug"
+        unplug_payload = {
+            "ev_id": user_id,
+            "charge_point_id": charge_point_id,
+            "connector_id": connector_id,
+            "transaction_id": transaction_id # Enviamos o ID da transação recebido no plug-in
         }
-        logger.info(f"VE '{user_id}': Solicitando parada de transação {transaction_id} ao CSMS para CP '{charge_point_id}'...")
-        async with aiohttp.ClientSession() as session:
-            async with session.post(stop_charging_url, json=stop_charging_payload) as response:
-                response.raise_for_status()
-                await response.json()
 
-        logger.info(f"VE '{user_id}': Transação {transaction_id} finalizada. Consumo simulado: {simulated_kwh_consumption:.2f} kWh.")
+        logger.info(f"VE '{user_id}': Solicitando fim de transação ao CSMS para CP '{charge_point_id}' via {unplug_url}...")
+        async with aiohttp.ClientSession() as session:
+            async with session.post(unplug_url, json=unplug_payload) as response:
+                response.raise_for_status()
+                logger.info(f"VE '{user_id}': Resposta da API de unplug: {await response.json()}")
 
     except aiohttp.ClientResponseError as e:
-        logger.error(f"VE '{user_id}': Erro de comunicação com a API do CSMS: {e.status}, message='{e.message}', url='{e.request_info.url}'", exc_info=True)
-    except aiohttp.ClientConnectionError as e:
-        logger.error(f"VE '{user_id}': Erro de conexão com a API do CSMS: {e}", exc_info=True)
+        logger.error(f"VE '{user_id}': Erro de comunicação com a API do CSMS: {e.status}, message='{e.message}', url='{e.request_info.url}'")
+    except aiohttp.ClientConnectorError as e:
+        logger.error(f"VE '{user_id}': Erro de conexão com a API do CSMS: {e}. Verifique se o servidor CSMS está rodando em {CSMS_API_URL}.")
     except Exception as e:
-        logger.error(f"VE '{user_id}': Um erro inesperado ocorreu durante a simulação: {e}", exc_info=True)
+        logger.error(f"VE '{user_id}': Ocorreu um erro inesperado durante a simulação: {e}", exc_info=True)
     finally:
         logger.info(f"-------------------------------------------------------")
 
@@ -95,12 +102,19 @@ if __name__ == '__main__':
             user_id = random.choice(users)
 
             # Introduzir um pequeno atraso aleatório antes de iniciar cada sessão
-            await asyncio.sleep(random.uniform(0.5, 3.0))  # Atraso
+            # Isso ajuda a distribuir as requisições e evitar sobrecarga inicial
+            delay = random.uniform(0.1, 1.0)
+            await asyncio.sleep(delay)
+
             task = asyncio.create_task(simulate_ev_charging_session(cp_id, conn_id, user_id))
             tasks.append(task)
 
-        await asyncio.gather(*tasks)
-        logger.info("Todas as %d simulações de Veículos Elétricos foram concluídas.", num_simulations)
-
+        try:
+            await asyncio.gather(*tasks)
+            logger.info(f"Todas as {num_simulations} simulações de Veículos Elétricos foram concluídas.")
+        except KeyboardInterrupt:
+            logger.info("Simulações de VE interrompidas pelo usuário.")
+        except Exception as e:
+            logger.error(f"Erro inesperado no main_ev_sim: {e}", exc_info=True)
 
     asyncio.run(main_ev_sim())
