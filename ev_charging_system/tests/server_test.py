@@ -14,7 +14,7 @@ async def test_connection_only():
         logger.info("🔄 Testando conexão OCPP 2.0 e enviando BootNotification imediato...")
 
         async with websockets.connect(
-                "ws://localhost:9000",
+                "ws://localhost:9000/CP001",
                 subprotocols=['ocpp2.0', 'ocpp2.0.1'],
                 timeout=10
         ) as websocket:
@@ -73,7 +73,7 @@ async def test_simple_messages():
             logger.info(f"🔄 Testando mensagem: {msg}")
 
             async with websockets.connect(
-                    "ws://localhost:9000",
+                    "ws://localhost:9000/CP001",
                     subprotocols=['ocpp2.0', 'ocpp2.0.1'],
                     timeout=5
             ) as websocket:
