@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger('ev_simulator')
 
 # URL da sua API RESTful do CSMS (main.py ou ocpp_server.py)
-# A porta padrão do FastAPI/Uvicorn é 8000
+# A porta padrão do FastAPI/Uvicorn é 8001
 CSMS_API_URL = "http://localhost:8000/api"
 
 
@@ -88,7 +88,7 @@ if __name__ == '__main__':
         users = [f"User-EV-{i:03d}" for i in range(1, 16)]  # 15 usuários simulados
 
         tasks = []
-        num_simulations = 30  # Número total de sessões de carregamento a simular
+        num_simulations = 5  # Número total de sessões de carregamento a simular
 
         for i in range(num_simulations):
             cp_id, conn_id = random.choice(cps_and_connectors)
