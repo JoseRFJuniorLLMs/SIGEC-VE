@@ -704,3 +704,23 @@ def get_connected_charge_points() -> Dict[str, OCPPCp]:
 def is_charge_point_connected(charge_point_id: str) -> bool:
     """Check if a charge point is connected (compatibility function)."""
     return charge_point_id in connected_charge_points
+
+# ev_charging_system/core/ocpp_server.py (ADICIONE ISSO NO FINAL DO ARQUIVO)
+
+if __name__ == '__main__':
+    # Configuração de logging para o caso de execução direta
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
+
+    async def main_server():
+        # A instância global `ocpp_server` já foi criada.
+        # Agora, basta chamar o método start dela.
+        # Ou você pode usar a função de compatibilidade que já existe:
+        await start_ocpp_server() # Chama a função que inicia o servidor global
+
+    try:
+        asyncio.run(main_server())
+    except KeyboardInterrupt:
+        logger.info("Servidor OCPP interrompido manualmente.")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao executar o servidor OCPP: {e}", exc_info=True)

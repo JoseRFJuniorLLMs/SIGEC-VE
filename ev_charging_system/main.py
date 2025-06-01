@@ -11,7 +11,6 @@ import logging
 import contextlib
 
 from typing import Dict, Optional
-from typing import Dict  # Importar Dict
 
 # Import models and database
 from ev_charging_system.data.models import Base, ChargePoint, Connector, Transaction, User
@@ -26,9 +25,26 @@ from ev_charging_system.core.ocpp_server import ocpp_server, connected_charge_po
 # Importar os enums do OCPP 2.0.1 para usar nas respostas da API
 from ocpp.v201 import enums as ocpp_enums_v201
 
+# Importar Pydantic para definir modelos de requisição
+from pydantic import BaseModel # Certifique-se de que está importado
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# --- Definição dos modelos Pydantic para eventos EV (NOVAS ADIÇÕES) ---
+# Estes modelos são usados para validar o corpo das requisições POST para eventos EV
+class EVPlugIn(BaseModel):
+    ev_id: str
+    charge_point_id: str
+    connector_id: int
+
+class EVUnPlug(BaseModel):
+    ev_id: str
+    charge_point_id: str
+    connector_id: int
+    transaction_id: str # Adicionado para corresponder à necessidade do RemoteStopTransaction
 
 
 # --- Lifespan Context Manager ---
@@ -408,99 +424,82 @@ async def change_availability_charge_point(
         raise HTTPException(status_code=500, detail=f"Failed to send ChangeAvailability command: {e}")
 
 
-# --- NEW EV Event Endpoints ---
+# --- NEW EV Event Endpoints (NOVAS ROTAS ADICIONADAS) ---
 @app.post("/api/ev_events/plug_in", summary="Simulate EV Plug-in event and initiate charging")
 async def ev_plug_in_event(
-        charge_point_id: str = Body(...),
-        connector_id: int = Body(...),
-        ev_id: str = Body(...),
-        id_tag_type: str = Body("ISO15118Certificate"),  # PnC ou outros
+        event: EVPlugIn, # Usando o modelo Pydantic para o corpo da requisição
         db: Session = Depends(get_db),
         csms_service: DeviceManagementService = Depends(get_device_management_service)
 ):
-    logger.info(f"API: EV {ev_id} plugged into CP {charge_point_id}, connector {connector_id}")
+    logger.info(f"API: EV {event.ev_id} plugged into CP {event.charge_point_id}, connector {event.connector_id}")
 
     # 1. Verificar se o CP está conectado ao CSMS via OCPP
-    if charge_point_id not in connected_charge_points:
-        raise HTTPException(status_code=404, detail=f"Charge Point {charge_point_id} is not connected via OCPP.")
+    if event.charge_point_id not in connected_charge_points:
+        raise HTTPException(status_code=404, detail=f"Charge Point {event.charge_point_id} is not connected via OCPP.")
 
     # 2. Enviar RemoteStartTransaction para o CP via OCPP
+    # Definir id_token_type como "ISO15118Certificate" por padrão ou conforme necessário
     id_token_payload = {
-        "idToken": ev_id,  # Simula o certificado/id do VE para PnC
-        "type": id_tag_type
+        "idToken": event.ev_id,
+        "type": "ISO15118Certificate" # Assumindo um tipo para o exemplo
     }
 
     try:
         # send_ocpp_command retorna a resposta do CP (CallResult)
         ocpp_response = await send_ocpp_command(
-            charge_point_id,
+            event.charge_point_id,
             "RemoteStartTransaction",
             id_token=id_token_payload,
-            connector_id=connector_id
+            connector_id=event.connector_id
         )
         logger.info(
-            f"OCPP Command (RemoteStartTransaction) sent to {charge_point_id}. Response: {ocpp_response.to_dict()}")
+            f"OCPP Command (RemoteStartTransaction) sent to {event.charge_point_id}. Response: {ocpp_response.to_dict()}")
 
-        # Se a transação foi aceita pelo CP, podemos retornar o status
         if ocpp_response.status == ocpp_enums_v201.RequestStartStopStatus.Accepted:
-            # Em uma aplicação real, o CSMS aguardaria o TransactionEvent.Started do CP
-            # para obter o transaction_id real e salvá-lo no banco de dados.
-            # Aqui, podemos simular um transactionId ou retornar a resposta do CP.
-            # O CP simulator irá gerar o transaction_id e enviá-lo no TransactionEvent: Started.
-            # Para o EV simulator ter um ID para parar, podemos retornar um mock agora
-            # e lidar com o ID real no CSMS quando o TransactionEvent chegar.
-            # Melhoria futura: o CSMS pode armazenar o mapeamento (CP, connector) -> transaction_id
-            # e retornar esse ID real para o EV simulator.
             return {"message": "EV Plug-in event received and RemoteStartTransaction sent to CP.",
                     "ocpp_response": ocpp_response.to_dict(),
-                    "transactionId": f"TEMP_{charge_point_id}_{connector_id}_{ev_id}"  # ID temporário para EV sim
+                    "transactionId": f"TEMP_{event.charge_point_id}_{event.connector_id}_{event.ev_id}"  # ID temporário para EV sim
                     }
         else:
             raise HTTPException(status_code=400,
                                 detail=f"RemoteStartTransaction rejected by CP: {ocpp_response.status}")
 
     except Exception as e:
-        logger.error(f"Failed to send RemoteStartTransaction to {charge_point_id}: {e}", exc_info=True)
+        logger.error(f"Failed to send RemoteStartTransaction to {event.charge_point_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to initiate charge: {e}")
 
 
 @app.post("/api/ev_events/unplug", summary="Simulate EV Unplug event and stop charging")
 async def ev_unplug_event(
-        charge_point_id: str = Body(...),
-        connector_id: int = Body(...),  # Pode ser útil para CSMS identificar o conector
-        ev_id: str = Body(...),
-        transaction_id: str = Body(...),  # O ID da transação a ser parada
+        event: EVUnPlug, # Usando o modelo Pydantic para o corpo da requisição
         db: Session = Depends(get_db),
         csms_service: DeviceManagementService = Depends(get_device_management_service)
 ):
     logger.info(
-        f"API: EV {ev_id} unplugged from CP {charge_point_id}, connector {connector_id}, transaction {transaction_id}")
+        f"API: EV {event.ev_id} unplugged from CP {event.charge_point_id}, connector {event.connector_id}, transaction {event.transaction_id}")
 
     # 1. Verificar se o CP está conectado ao CSMS via OCPP
-    if charge_point_id not in connected_charge_points:
-        raise HTTPException(status_code=404, detail=f"Charge Point {charge_point_id} is not connected via OCPP.")
+    if event.charge_point_id not in connected_charge_points:
+        raise HTTPException(status_code=404, detail=f"Charge Point {event.charge_point_id} is not connected via OCPP.")
 
     # 2. Enviar RemoteStopTransaction para o CP via OCPP
     try:
-        # send_ocpp_command retorna a resposta do CP (CallResult)
         ocpp_response = await send_ocpp_command(
-            charge_point_id,
+            event.charge_point_id,
             "RemoteStopTransaction",
-            transaction_id=transaction_id
+            transaction_id=event.transaction_id
         )
         logger.info(
-            f"OCPP Command (RemoteStopTransaction) sent to {charge_point_id}. Response: {ocpp_response.to_dict()}")
+            f"OCPP Command (RemoteStopTransaction) sent to {event.charge_point_id}. Response: {ocpp_response.to_dict()}")
 
         if ocpp_response.status == ocpp_enums_v201.RequestStartStopStatus.Accepted:
-            # Em uma aplicação real, o CSMS aguardaria o TransactionEvent.Ended do CP
-            # para finalizar a transação no banco de dados.
             return {"message": "EV Unplug event received and RemoteStopTransaction sent to CP.",
                     "ocpp_response": ocpp_response.to_dict()}
         else:
             raise HTTPException(status_code=400, detail=f"RemoteStopTransaction rejected by CP: {ocpp_response.status}")
 
     except Exception as e:
-        logger.error(f"Failed to send RemoteStopTransaction to {charge_point_id}: {e}", exc_info=True)
+        logger.error(f"Failed to send RemoteStopTransaction to {event.charge_point_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stop charge: {e}")
 
 
@@ -576,3 +575,8 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=500, detail=f"Health check failed: {e}")
+
+# --- Execução da Aplicação ---
+if __name__ == "__main__":
+    logger.info("INFO: Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)")
+    uvicorn.run(app, host="0.0.0.0", port=8001)

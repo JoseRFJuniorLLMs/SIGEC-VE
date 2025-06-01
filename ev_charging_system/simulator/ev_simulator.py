@@ -4,12 +4,14 @@ import random
 import logging
 import asyncio
 from datetime import datetime, timezone
+import aiohttp  # Importação adicionada para requisições assíncronas
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('ev_simulator')
 
 # URL da sua API RESTful do CSMS (main.py)
-CSMS_API_URL = "http://localhost:8001/api"
+# CORREÇÃO AQUI: A porta padrão do FastAPI/Uvicorn é 8000, não 8001
+CSMS_API_URL = "http://localhost:8000/api"
 
 
 async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, user_id: str):
@@ -24,15 +26,20 @@ async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, 
     try:
         # 1. Simular "Plug-in" do VE (comunicação EV -> CSMS via API)
         logger.info(f"VE '{user_id}': Enviando evento de Plug-in para CP '{charge_point_id}'...")
-        plug_in_response = requests.post(
-            f"{CSMS_API_URL}/ev_events/plug_in",
-            json={
-                "charge_point_id": charge_point_id,
-                "connector_id": connector_id,
-                "ev_id": user_id,  # Usando user_id como ev_id para PnC simulado
-                "id_tag_type": "ISO15118Certificate"  # Simular PnC para o CSMS
-            }
-        ).json()
+
+        # Usando aiohttp para requisições assíncronas
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                    f"{CSMS_API_URL}/ev_events/plug_in",
+                    json={
+                        "charge_point_id": charge_point_id,
+                        "connector_id": connector_id,
+                        "ev_id": user_id,  # Usando user_id como ev_id para PnC simulado
+                        "id_tag_type": "ISO15118Certificate"  # Simular PnC para o CSMS
+                    }
+            ) as response:
+                plug_in_response = await response.json()
+                response.raise_for_status()  # Lança uma exceção para códigos de status HTTP 4xx/5xx
 
         if plug_in_response and plug_in_response.get("ocpp_response", {}).get("status") == "Accepted":
             logger.info(f"VE '{user_id}': Plug-in aceito pelo CSMS. RemoteStartTransaction enviado ao CP.")
@@ -56,28 +63,33 @@ async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, 
             # 3. Simular "Unplug" do VE (comunicação EV -> CSMS via API)
             logger.info(
                 f"VE '{user_id}': Enviando evento de Unplug para CP '{charge_point_id}', transação {transaction_id}...")
-            unplug_response = requests.post(
-                f"{CSMS_API_URL}/ev_events/unplug",
-                json={
-                    "charge_point_id": charge_point_id,
-                    "connector_id": connector_id,  # Pode ser útil para CSMS identificar o conector
-                    "ev_id": user_id,
-                    "transaction_id": transaction_id  # Passar o ID da transação
-                }
-            ).json()
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                        f"{CSMS_API_URL}/ev_events/unplug",
+                        json={
+                            "charge_point_id": charge_point_id,
+                            "connector_id": connector_id,  # Pode ser útil para CSMS identificar o conector
+                            "ev_id": user_id,
+                            "transaction_id": transaction_id  # Passar o ID da transação
+                        }
+                ) as response:
+                    unplug_response = await response.json()
+                    response.raise_for_status()  # Lança uma exceção para códigos de status HTTP 4xx/5xx
 
             if unplug_response and unplug_response.get("ocpp_response", {}).get("status") == "Accepted":
                 logger.info(f"VE '{user_id}': Unplug aceito pelo CSMS. RemoteStopTransaction enviado ao CP.")
                 logger.info(
                     f"VE '{user_id}': Transação {transaction_id} concluída. kWh simulados: {simulated_kwh_consumption:.2f}.")
             else:
-                logger.error(f"VE '{user_id}': Não foi possível parar a transação {transaction_id}: {unplug_response}")
+                logger.error(
+                    f"VE '{user_id}': Não foi possível parar a transação {transaction_id}. Resposta: {unplug_response}")
 
         else:
             logger.error(
                 f"VE '{user_id}': Não foi possível iniciar a transação para CP '{charge_point_id}'. Resposta: {plug_in_response}")
 
-    except requests.exceptions.RequestException as e:
+    except aiohttp.ClientError as e:  # Captura erros de requisição aiohttp
         logger.error(f"VE '{user_id}': Erro de comunicação com a API do CSMS: {e}")
     except Exception as e:
         logger.error(f"VE '{user_id}': Um erro inesperado ocorreu durante a simulação: {e}", exc_info=True)

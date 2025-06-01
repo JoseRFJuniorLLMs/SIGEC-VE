@@ -57,214 +57,260 @@ class SimulatorTester:
     def check_files(self):
         """Verifica se os arquivos necessários existem"""
         logger.info("📁 Verificando arquivos...")
-
         required_files = [
-            'D:\dev\SIGEC-VE\pythonProject\ev_charging_system\simulator\charge_point_simulator.py',
-            'D:\dev\SIGEC-VE\pythonProject\ev_charging_system\simulator\ev_simulator.py',
-            'D:\dev\SIGEC-VE\pythonProject\ev_charging_system\core\ocpp_server.py'
+            '../simulator/charge_point_simulator.py',
+            '../simulator/ev_simulator.py',
+            '../core/ocpp_server.py'
         ]
 
         missing_files = []
-        for file in required_files:
-            if not Path(file).exists():
-                missing_files.append(file)
-                logger.error(f"❌ {file} - NÃO ENCONTRADO")
+        for file_path_str in required_files:
+            file_path = (self.base_dir / file_path_str).resolve()
+            if not file_path.exists():
+                missing_files.append(file_path_str)
+                logger.error(f"❌ {file_path_str} - FALTANDO")
             else:
-                logger.info(f"✅ {file} - OK")
+                logger.info(f"✅ {file_path_str} - OK")
 
         if missing_files:
-            logger.error("🚫 Arquivos faltantes encontrados!")
+            logger.error("Arquivos necessários faltando. Verifique o caminho.")
             return False
-
         logger.info("✅ Todos os arquivos necessários encontrados!")
         return True
 
-    def fix_charge_point_simulator(self):
-        """Corrige imports faltantes no simulador de charge point"""
-        logger.info("🔧 Corrigindo imports no charge_point_simulator.py...")
+    # Esta função fix_charge_point_simulator foi removida do fluxo de teste
+    # pois estava causando problemas de indentação.
+    # def fix_charge_point_simulator(self):
+    #     """
+    #     Corrige imports faltantes e incorretos no simulador de charge point.
+    #     Isso é uma correção temporária para um problema de importação específico.
+    #     """
+    #     cp_sim_path = (self.base_dir / '../simulator/charge_point_simulator.py').resolve()
+    #     logger.info(f"🔧 Corrigindo imports no {cp_sim_path.name}...")
+    #     try:
+    #         with open(cp_sim_path, 'r', encoding='utf-8') as f:
+    #             content = f.readlines()
 
-        file_path = 'D:\dev\SIGEC-VE\pythonProject\ev_charging_system\simulator\charge_point_simulator.py'
+    #         new_content = []
+    #         fixed = False
+    #         for line in content:
+    #             # A linha que causa o erro "cannot import name 'BootNotification' from 'ocpp.v201.call'"
+    #             if "from ocpp.v201.call import BootNotification" in line:
+    #                 line = "# " + line # Comenta a linha problemática
+    #                 fixed = True
+    #                 logger.info("Comentada linha 'from ocpp.v201.call import BootNotification'")
+    #             new_content.append(line)
 
-        try:
-            with open(file_path, 'r') as f:
-                content = f.read()
+    #         if fixed:
+    #             with open(cp_sim_path, 'w', encoding='utf-8') as f:
+    #                 f.writelines(new_content)
+    #             logger.info("✅ Arquivo corrigido com sucesso!")
+    #         else:
+    #             logger.info("✅ Arquivo já está correto! (Nenhuma correção necessária no momento)")
 
-            # Adiciona imports faltantes se não existirem
-            imports_to_add = [
-                "import random",
-                "from datetime import datetime"
-            ]
+    #     except Exception as e:
+    #         logger.error(f"❌ Erro ao corrigir {cp_sim_path.name}: {e}")
+    #         logger.warning("Pode ser necessário corrigir manualmente os imports do Charge Point.")
+    #         return False
+    #     return True
 
-            content_modified = False
-            for import_line in imports_to_add:
-                if import_line not in content:
-                    # Adiciona após os outros imports
-                    lines = content.split('\n')
-                    import_index = 0
-                    for i, line in enumerate(lines):
-                        if line.startswith('import ') or line.startswith('from '):
-                            import_index = i
-
-                    lines.insert(import_index + 1, import_line)
-                    content = '\n'.join(lines)
-                    content_modified = True
-                    logger.info(f"✅ Adicionado: {import_line}")
-
-            # Salva o arquivo corrigido apenas se foi modificado
-            if content_modified:
-                with open(file_path, 'w') as f:
-                    f.write(content)
-                logger.info("🔧 Correções aplicadas!")
-            else:
-                logger.info("✅ Arquivo já está correto!")
-
-        except FileNotFoundError:
-            logger.warning(f"⚠️ {file_path} não encontrado, pulando correções")
-        except Exception as e:
-            logger.error(f"❌ Erro ao corrigir arquivo: {e}")
-
-    async def start_ocpp_server(self):
-        """Inicia o servidor OCPP"""
+    async def run_ocpp_server(self):
+        """Inicia o servidor OCPP como um subprocesso"""
         logger.info("🚀 Iniciando servidor OCPP...")
+        server_path = (self.base_dir / '../core/ocpp_server.py').resolve()
+
+        # Certifica-se de que o python do venv está sendo usado
+        python_executable = sys.executable
 
         try:
-            # Executa o servidor OCPP em processo separado
-            process = subprocess.Popen([
-                sys.executable, '../core/ocpp_server.py'
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-            self.processes.append(('OCPP Server-->>', process))
-
-            # Aguarda um pouco para o servidor inicializar
-            await asyncio.sleep(3)
-
-            # Verifica se o processo ainda está rodando
-            if process.poll() is None:
-                logger.info("✅ Servidor OCPP iniciado com sucesso!")
-                return True
-            else:
-                stdout, stderr = process.communicate()
-                logger.error(f"❌ Servidor OCPP falhou: {stderr}")
-                return False
-
-        except Exception as e:
-            logger.error(f"❌ Erro ao iniciar servidor OCPP: {e}")
-            return False
-
-    async def start_charge_point_simulator(self):
-        """Inicia o simulador de charge point"""
-        logger.info("🔌 Iniciando simulador de Charge Point...")
-
-        try:
-            process = subprocess.Popen([
-                sys.executable, './ev_charging_system/simulator/charge_point_simulator.py'
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-            self.processes.append(('Charge Point Simulator', process))
-
-            # Aguarda um pouco para conectar
-            await asyncio.sleep(5)
-
-            if process.poll() is None:
-                logger.info("✅ Simulador de Charge Point iniciado!")
-                return True
-            else:
-                stdout, stderr = process.communicate()
-                logger.error(f"❌ Simulador de CP falhou: {stderr}")
-                return False
-
-        except Exception as e:
-            logger.error(f"❌ Erro ao iniciar simulador CP: {e}")
-            return False
-
-    async def run_ev_simulator(self):
-        """Executa o simulador de EV"""
-        logger.info("🚗 Executando simulador de Veículo Elétrico...")
-
-        try:
-            # Using asyncio subprocess for better output handling
+            # Captura a saída e o erro do subprocesso
             process = await asyncio.create_subprocess_exec(
-                sys.executable, './ev_charging_system/simulator/ev_simulator.py',
+                python_executable, str(server_path),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
+            self.processes.append(process)
+
+            # Lê a saída inicial para verificar se o servidor iniciou com sucesso
+            # Lê até a primeira linha que indica sucesso ou erro fatal
+            output_lines = []
+
+            # Timeout para esperar a inicialização do servidor
+            timeout = 3  # segundos
+            start_time = time.time()
+            server_started = False
+
+            while True:
+                if process.stdout.at_eof() and process.stderr.at_eof():
+                    break  # Processo terminou
+
+                try:
+                    # Tenta ler uma linha do stdout ou stderr
+                    line = await asyncio.wait_for(process.stdout.readline(), 0.1)
+                    if not line:
+                        line = await asyncio.wait_for(process.stderr.readline(), 0.1)
+                        if not line:
+                            await asyncio.sleep(0.1)  # Pequena pausa se nada for lido
+                            continue
+
+                    decoded_line = line.decode().strip()
+                    if decoded_line:
+                        logger.info(decoded_line)  # Loga a saída do servidor
+                        output_lines.append(decoded_line)
+                        if "OCPP WebSocket Server started successfully" in decoded_line or "server listening on" in decoded_line:
+                            server_started = True
+                            break
+                        if "Erro inesperado" in decoded_line or "error while attempting to bind" in decoded_line:
+                            logger.error(f"❌ Servidor OCPP falhou: {decoded_line}")
+                            # Tenta ler o restante do stderr para capturar o traceback completo
+                            remaining_stderr = (await process.stderr.read()).decode().strip()
+                            if remaining_stderr:
+                                logger.error(remaining_stderr)
+                            return False
+
+                except asyncio.TimeoutError:
+                    if time.time() - start_time > timeout:
+                        logger.error("❌ Timeout ao esperar pelo servidor OCPP iniciar.")
+                        return False
+                    continue  # Continua tentando ler
+
+            if not server_started:
+                logger.error("❌ Servidor OCPP não indicou inicialização bem-sucedida.")
+                return False
+
+            return True
+        except Exception as e:
+            logger.error(f"❌ Erro inesperado ao executar o servidor OCPP: {e}")
+            return False
+
+    async def run_charge_point_simulator(self):
+        """Inicia o simulador de Charge Point como um subprocesso"""
+        logger.info("🔌 Iniciando simulador de Charge Point...")
+        cp_path = (self.base_dir / '../simulator/charge_point_simulator.py').resolve()
+        python_executable = sys.executable
+        try:
+            process = await asyncio.create_subprocess_exec(
+                python_executable, str(cp_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            self.processes.append(process)
+
+            # Espera um pouco para o CP se conectar e enviar BootNotification
+            await asyncio.sleep(5)  # Ajuste este tempo conforme necessário
+
+            # Lê a saída e erros para log
+            stdout, stderr = await process.communicate()
+            if stdout:
+                for line in stdout.decode().splitlines():
+                    logger.info(f"CP: {line}")
+            if stderr:
+                for line in stderr.decode().splitlines():
+                    logger.error(f"CP: {line}")
+                # Não retornamos False aqui, apenas logamos o erro, pois o CP pode ter
+                # tentado algo e falhado, mas o simulador em si pode não ter travado.
+                # O retorno de código do processo será verificado abaixo.
+
+            if process.returncode != 0:
+                logger.error(f"❌ Simulador de CP terminou com código de erro: {process.returncode}")
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"❌ Erro inesperado ao executar o simulador de CP: {e}")
+            return False
+
+    async def run_ev_simulator(self):
+        """Inicia o simulador de EV como um subprocesso"""
+        logger.info("🚗 Iniciando simulador de EV...")
+        ev_path = (self.base_dir / '../simulator/ev_simulator.py').resolve()
+        python_executable = sys.executable
+        try:
+            process = await asyncio.create_subprocess_exec(
+                python_executable, str(ev_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            self.processes.append(process)
+
+            # Espera um pouco para o EV operar
+            await asyncio.sleep(5)  # Ajuste este tempo conforme necessário
 
             stdout, stderr = await process.communicate()
-
             if stdout:
-                logger.info("📊 Saída do simulador EV:")
-                logger.info(stdout.decode())
-
+                for line in stdout.decode().splitlines():
+                    logger.info(f"EV: {line}")
             if stderr:
-                logger.warning("⚠️ Erros do simulador EV:")
-                logger.warning(stderr.decode())
+                for line in stderr.decode().splitlines():
+                    logger.error(f"EV: {line}")
+                # Não retornamos False aqui, apenas logamos o erro, pois o EV pode ter
+                # tentado algo e falhado, mas o simulador em si pode não ter travado.
+                # O retorno de código do processo será verificado abaixo.
 
-            logger.info("✅ Simulador de EV concluído!")
+            if process.returncode != 0:
+                logger.error(f"❌ Simulador de EV terminou com código de erro: {process.returncode}")
+                return False
             return True
-
         except Exception as e:
-            logger.error(f"❌ Erro ao executar simulador EV: {e}")
+            logger.error(f"❌ Erro inesperado ao executar o simulador de EV: {e}")
             return False
 
     def cleanup(self):
-        """Limpa os processos iniciados"""
+        """Finaliza todos os subprocessos iniciados"""
         logger.info("🧹 Finalizando processos...")
-
-        for name, process in self.processes:
-            try:
-                if process.poll() is None:  # Processo ainda rodando
-                    logger.info(f"🛑 Terminando {name}...")
-                    process.terminate()
-
-                    # Aguarda até 5 segundos para terminar graciosamente
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        logger.warning(f"⚠️ Forçando término de {name}...")
-                        process.kill()
-                        process.wait()
-
-                    logger.info(f"✅ {name} finalizado")
-            except Exception as e:
-                logger.error(f"❌ Erro ao finalizar {name}: {e}")
-
-        self.processes.clear()
+        for process in self.processes:
+            if process.returncode is None:  # Se o processo ainda estiver rodando
+                logger.info(f"🛑 Terminando processo {process.pid}...")
+                process.terminate()
+                try:
+                    process.wait(timeout=5)  # Espera 5 segundos para o processo terminar
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"Processo {process.pid} não terminou, matando...")
+                    process.kill()
         logger.info("🧹 Limpeza concluída!")
 
     async def run_full_test(self):
-        """Executa o teste completo dos simuladores"""
-        logger.info("🎯 Iniciando teste completo dos simuladores...")
+        """
+        Executa um teste completo (CP + EV).
+        O servidor OCPP principal DEVE estar rodando separadamente.
+        """
+        logger.info("🎯 Iniciando teste completo dos simuladores (CP + EV)...")
 
+        if not self.check_dependencies():
+            return False
+
+        if not self.check_files():
+            return False
+
+        # As linhas abaixo foram comentadas/removidas porque o servidor OCPP
+        # deve estar sendo executado externamente (por exemplo, via Uvicorn).
+        # self.fix_charge_point_simulator() # Removido para evitar problemas de indentação.
+
+        # if not await self.run_ocpp_server():
+        #     logger.error("❌ Servidor OCPP falhou.")
+        #     self.cleanup()
+        #     return False
+        # logger.info("✅ Servidor OCPP iniciado com sucesso!")
+
+        logger.info("🔌 Iniciando simulador de Charge Point...")
+        if not await self.run_charge_point_simulator():
+            logger.error("❌ Simulador de CP falhou.")
+            self.cleanup()
+            return False
+        logger.info("✅ Simulador de Charge Point iniciado com sucesso!")
+
+        logger.info("🚗 Iniciando simulador de EV...")
+        if not await self.run_ev_simulator():
+            logger.error("❌ Simulador de EV falhou.")
+            self.cleanup()
+            return False
+        logger.info("✅ Simulador de EV iniciado com sucesso!")
+
+        logger.info("🎉 Teste completo concluído com sucesso!")
+        return True
+
+    async def run_test(self, test_func):
         try:
-            # 1. Verificações iniciais
-            if not self.check_dependencies() or not self.check_files():
-                return False
-
-            # 2. Corrige arquivos se necessário
-            self.fix_charge_point_simulator()
-
-            # 3. Inicia servidor OCPP
-            if not await self.start_ocpp_server():
-                return False
-
-            # 4. Inicia simulador de Charge Point
-            if not await self.start_charge_point_simulator():
-                return False
-
-            # 5. Aguarda estabilização
-            logger.info("⏳ Aguardando estabilização dos sistemas...")
-            await asyncio.sleep(5)
-
-            # 6. Executa simulador de EV
-            await self.run_ev_simulator()
-
-            # 7. Mantém sistemas rodando por um tempo para observação
-            logger.info("👀 Sistemas rodando... Observe os logs por 30 segundos")
-            await asyncio.sleep(30)
-
-            logger.info("🎉 Teste completo finalizado com sucesso!")
-            return True
-
+            await test_func()
         except KeyboardInterrupt:
             logger.info("⏹️ Teste interrompido pelo usuário")
             return False
@@ -290,7 +336,7 @@ async def main():
     print("🧪 TESTADOR DE SIMULADORES OCPP")
     print("=" * 50)
     print("Escolha uma opção:")
-    print("1. Teste completo (servidor + CP + EV)")
+    print("1. Teste completo (CP + EV - Servidor já em execução)")
     print("2. Teste rápido (apenas EV)")
     print("3. Verificar dependências")
     print("4. Sair")
@@ -300,23 +346,17 @@ async def main():
     tester = SimulatorTester()
 
     if choice == "1":
-        await tester.run_full_test()
+        await tester.run_test(tester.run_full_test)
     elif choice == "2":
-        await tester.run_quick_test()
+        await tester.run_test(tester.run_quick_test)
     elif choice == "3":
         tester.check_dependencies()
         tester.check_files()
     elif choice == "4":
         print("👋 Até logo!")
-        return
     else:
-        print("❌ Opção inválida!")
+        print("❌ Opção inválida. Por favor, digite um número entre 1 e 4.")
 
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n👋 Teste interrompido!")
-    except Exception as e:
-        print(f"❌ Erro: {e}")
+if __name__ == '__main__':
+    asyncio.run(main())
