@@ -1,6 +1,12 @@
                                   # SIGEC-VE
 # Sistema Inteligente de Gestão de Estações de Carregamento de VE (CSMS) com LLMs
 
+![Diagrama 1](assets/v0.png)
+![Diagrama 1](assets/v00.png)
+![Diagrama 1](assets/v1.png)
+![Diagrama 2](assets/v2.png)
+![Diagrama 3](assets/v3.png)
+
 Este projeto propõe uma arquitetura robusta e modular para um **Sistema de Gestão Central de Estações de Carregamento de Veículos Elétricos (CSMS)** que integra **Large Language Models (LLMs)** para funcionalidades avançadas de inteligência e automação. Utiliza o protocolo **OCPP (Open Charge Point Protocol)** para comunicação com os postos de carregamento e o **Model Context Protocol (MCP)** da Anthropic para a orquestração com os LLMs.
 
 OCPP 2.0.1 (Open Charge Point Protocol) - Casos de Uso Implementados:

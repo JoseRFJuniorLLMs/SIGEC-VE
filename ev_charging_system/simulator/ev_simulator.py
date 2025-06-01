@@ -1,74 +1,81 @@
-# ev_charging_system/ev_simulator.py
-
 import requests
 import time
 import random
 import logging
-import asyncio # Necessário para rodar funções async
-from datetime import datetime # Importado para obter o timestamp
+import asyncio
+from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('ev_simulator')
 
-# URL da sua API RESTful do CSMS (api/rest_api.py)
-# Certifique-se que sua FastAPI está rodando na porta 8001 (ou a porta configurada no main.py)
-CSMS_API_URL = "http://localhost:8001/api" # Adicionado /api prefixo como no main.py
+# URL da sua API RESTful do CSMS (main.py)
+CSMS_API_URL = "http://localhost:8001/api"
+
 
 async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, user_id: str):
-    """
-    Simula uma sessão completa de carregamento de VE.
-    Envia requisições para a API do CSMS para iniciar e parar transações.
-    """
     logger.info(f"-------------------------------------------------------")
     logger.info(f"Simulando VE '{user_id}' no CP '{charge_point_id}', conector {connector_id}...")
     transaction_id = None
 
+    # Simular uma duração de carregamento e kWh a consumir
+    charging_time_seconds = random.randint(15, 60)  # Carregamento de 15 a 60 segundos
+    simulated_kwh_consumption = random.uniform(5.0, 30.0)  # Consumo de 5 a 30 kWh
+
     try:
-        # 1. Simular "Plug-in" e "Autorização" (chamando a API do CSMS para iniciar transação)
-        start_payload = {
-            "charge_point_id": charge_point_id,
-            "connector_id": connector_id,
-            "id_tag": user_id, # Usando o user_id como id_tag para simplificar
-            "meter_start": random.uniform(0.0, 10.0), # Valor inicial aleatório para o medidor
-            "timestamp": datetime.utcnow().isoformat() + "Z" # Hora atual em formato ISO 8601 UTC
-        }
-        logger.info(f"VE '{user_id}': Chamando API para iniciar transação: {start_payload}")
-        start_response = requests.post(f"{CSMS_API_URL}/transactions/start", json=start_payload)
-        start_data = start_response.json()
+        # 1. Simular "Plug-in" do VE (comunicação EV -> CSMS via API)
+        logger.info(f"VE '{user_id}': Enviando evento de Plug-in para CP '{charge_point_id}'...")
+        plug_in_response = requests.post(
+            f"{CSMS_API_URL}/ev_events/plug_in",
+            json={
+                "charge_point_id": charge_point_id,
+                "connector_id": connector_id,
+                "ev_id": user_id,  # Usando user_id como ev_id para PnC simulado
+                "id_tag_type": "ISO15118Certificate"  # Simular PnC para o CSMS
+            }
+        ).json()
 
-        if start_response.status_code == 200 and start_data.get("status") == "Started":
-            transaction_id = start_data.get("transaction_id")
-            logger.info(f"VE '{user_id}': Transação iniciada com sucesso! ID: {transaction_id}")
-            logger.info(f"VE '{user_id}': Iniciando simulação de carregamento por 5-15 segundos...")
+        if plug_in_response and plug_in_response.get("ocpp_response", {}).get("status") == "Accepted":
+            logger.info(f"VE '{user_id}': Plug-in aceito pelo CSMS. RemoteStartTransaction enviado ao CP.")
 
-            # 2. Simular carregamento por um período de tempo
-            charge_duration = random.randint(5, 15) # Carregar por 5 a 15 segundos
-            await asyncio.sleep(charge_duration)
+            # Em um cenário real, o CSMS enviaria o transaction_id de volta após a confirmação do CP.
+            # Aqui, vamos pegar o transactionId que o CSMS retorna (se retornar um temporário)
+            # ou usar um mock para prosseguir a simulação.
+            transaction_id = plug_in_response.get("transactionId")
+            if not transaction_id:  # Se o CSMS não retornou um ID temporário ou real ainda
+                transaction_id = f"MOCK_TRX_{user_id}_{int(time.time())}"
+                logger.warning(
+                    f"VE '{user_id}': CSMS não retornou transactionId imediatamente. Usando ID mock: {transaction_id}")
 
-            # 3. Simular "Desconexão" (chamando a API do CSMS para parar transação)
-            if transaction_id:
-                stop_payload = {
+            logger.info(f"VE '{user_id}': Transação simulada iniciada (ID provisório/mock) {transaction_id}.")
+
+            # 2. Simular período de carregamento
+            logger.info(
+                f"VE '{user_id}': Carregando por aproximadamente {charging_time_seconds} segundos (simulando {simulated_kwh_consumption:.2f} kWh)...")
+            await asyncio.sleep(charging_time_seconds)
+
+            # 3. Simular "Unplug" do VE (comunicação EV -> CSMS via API)
+            logger.info(
+                f"VE '{user_id}': Enviando evento de Unplug para CP '{charge_point_id}', transação {transaction_id}...")
+            unplug_response = requests.post(
+                f"{CSMS_API_URL}/ev_events/unplug",
+                json={
                     "charge_point_id": charge_point_id,
-                    "transaction_id": transaction_id,
-                    "meter_stop": start_payload["meter_start"] + random.uniform(5.0, 50.0), # Valor final do medidor
-                    "timestamp": datetime.utcnow().isoformat() + "Z", # Hora de parada
-                    "reason": "EVDisconnected"
+                    "connector_id": connector_id,  # Pode ser útil para CSMS identificar o conector
+                    "ev_id": user_id,
+                    "transaction_id": transaction_id  # Passar o ID da transação
                 }
-                logger.info(f"VE '{user_id}': Chamando API para parar transação: {stop_payload}")
-                stop_response = requests.post(f"{CSMS_API_URL}/transactions/stop", json=stop_payload)
-                stop_data = stop_response.json()
+            ).json()
 
-                if stop_response.status_code == 200 and stop_data.get("status") == "Stopped":
-                    logger.info(f"VE '{user_id}': Transação {transaction_id} parada com sucesso.")
-                    logger.info(f"VE '{user_id}': Energia consumida: {stop_data.get('total_energy_kwh', 'N/A')} kWh")
-                    logger.info(f"VE '{user_id}': Custo: {stop_data.get('cost', 'N/A')} €")
-                else:
-                    logger.warning(f"VE '{user_id}': Erro ou status inesperado ao parar transação {transaction_id}: {stop_data}")
+            if unplug_response and unplug_response.get("ocpp_response", {}).get("status") == "Accepted":
+                logger.info(f"VE '{user_id}': Unplug aceito pelo CSMS. RemoteStopTransaction enviado ao CP.")
+                logger.info(
+                    f"VE '{user_id}': Transação {transaction_id} concluída. kWh simulados: {simulated_kwh_consumption:.2f}.")
             else:
-                logger.warning(f"VE '{user_id}': Não foi possível parar a transação, ID da transação não disponível.")
+                logger.error(f"VE '{user_id}': Não foi possível parar a transação {transaction_id}: {unplug_response}")
 
         else:
-            logger.error(f"VE '{user_id}': Não foi possível iniciar a transação para CP '{charge_point_id}'. Status: {start_data.get('status')}. Detalhes: {start_data.get('detail', 'N/A')}")
+            logger.error(
+                f"VE '{user_id}': Não foi possível iniciar a transação para CP '{charge_point_id}'. Resposta: {plug_in_response}")
 
     except requests.exceptions.RequestException as e:
         logger.error(f"VE '{user_id}': Erro de comunicação com a API do CSMS: {e}")
@@ -78,17 +85,34 @@ async def simulate_ev_charging_session(charge_point_id: str, connector_id: int, 
         logger.info(f"-------------------------------------------------------")
 
 
-# --- Execução Principal do Simulador de VE ---
 if __name__ == '__main__':
     async def main_ev_sim():
-        # Simular alguns cenários de VE
-        logger.info("Iniciando simuladores de Veículos Elétricos...")
-        await simulate_ev_charging_session("CP-SIGEC-001", 1, "User-EV-001")
-        await asyncio.sleep(3) # Pequeno intervalo entre as simulações
-        await simulate_ev_charging_session("CP-SIGEC-002", 1, "User-EV-002")
-        await asyncio.sleep(3)
-        await simulate_ev_charging_session("CP-SIGEC-001", 2, "User-EV-003")
-        logger.info("Simulações de Veículos Elétricos concluídas.")
+        logger.info("Iniciando simuladores de Veículos Elétricos dinamicamente...")
 
-    # Rodar a função principal assíncrona
+        # Lista de CPs e conectores disponíveis (idealmente viria de uma API do CSMS)
+        # Para fins de simulação, vamos usar os CPs e conectores que sabemos que existem
+        cps_and_connectors = [
+            ("CP-SIGEC-001", 1), ("CP-SIGEC-001", 2),
+            ("CP-SIGEC-002", 1), ("CP-SIGEC-002", 2)
+        ]
+        users = [f"User-EV-{i:03d}" for i in range(1, 16)]  # 15 usuários simulados, mais dinâmico
+
+        tasks = []
+        num_simulations = 30  # Número total de sessões de carregamento a simular
+
+        for i in range(num_simulations):
+            cp_id, conn_id = random.choice(cps_and_connectors)
+            user_id = random.choice(users)
+
+            # Introduzir um pequeno atraso aleatório antes de iniciar cada sessão
+            await asyncio.sleep(random.uniform(0.5, 3.0))  # Atraso de 0.5 a 3 segundos
+
+            tasks.append(asyncio.create_task(
+                simulate_ev_charging_session(cp_id, conn_id, user_id)
+            ))
+
+        await asyncio.gather(*tasks)
+        logger.info(f"Todas as {num_simulations} simulações de Veículos Elétricos foram concluídas.")
+
+
     asyncio.run(main_ev_sim())
