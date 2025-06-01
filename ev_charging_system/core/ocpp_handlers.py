@@ -248,18 +248,5 @@ class OCPP201Handlers:
             self.logger.error(f"Error storing meter values: {e}")
 
 
-# Create handlers instance
-handlers = OCPP201Handlers()
-
-# Export handler methods for route mapping
-ocpp_handlers = {
-    'BootNotification': handlers.on_boot_notification,
-    'Heartbeat': handlers.on_heartbeat,
-    'StatusNotification': handlers.on_status_notification,
-    'TransactionEvent': handlers.on_transaction_event,
-    'Authorize': handlers.on_authorize,
-    'MeterValues': handlers.on_meter_values,
-    'DataTransfer': handlers.on_data_transfer,
-    'FirmwareStatusNotification': handlers.on_firmware_status_notification,
-    'LogStatusNotification': handlers.on_log_status_notification
-}
+# Create handlers instance and make it directly available for import
+ocpp_handlers = OCPP201Handlers()
