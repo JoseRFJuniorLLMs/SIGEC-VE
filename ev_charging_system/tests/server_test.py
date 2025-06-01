@@ -9,28 +9,46 @@ logger = logging.getLogger(__name__)
 
 
 async def test_connection_only():
-    """Testa apenas a conexão sem enviar mensagens"""
+    """Testa apenas a conexão sem enviar mensagens, e então envia um BootNotification."""
     try:
-        logger.info("🔄 Testando conexão OCPP 2.0 sem enviar mensagens...")
+        logger.info("🔄 Testando conexão OCPP 2.0 e enviando BootNotification imediato...")
 
         async with websockets.connect(
                 "ws://localhost:9000",
-                subprotocols=['ocpp2.0', 'ocpp2.0.1'],  # Mudança principal aqui
+                subprotocols=['ocpp2.0', 'ocpp2.0.1'],
                 timeout=10
         ) as websocket:
             logger.info(f"✅ Conectado! Subprotocol: {websocket.subprotocol}")
 
-            # Aguarda um pouco para ver se o servidor envia algo
-            try:
-                msg = await asyncio.wait_for(websocket.recv(), timeout=2.0)
-                logger.info(f"📥 Servidor enviou: {msg}")
-            except asyncio.TimeoutError:
-                logger.info("⏰ Servidor não enviou nada (normal)")
+            # --- Adição aqui: Enviar BootNotification imediatamente ---
+            boot_msg = [2, "test_conn_boot", "BootNotification", {
+                "chargingStation": {
+                    "vendorName": "TestClient",
+                    "model": "TestModel"
+                },
+                "reason": "PowerUp"
+            }]
+            await websocket.send(json.dumps(boot_msg))
+            logger.info("📤 Enviado BootNotification após conexão.")
 
-            # Mantém conexão viva por alguns segundos
-            await asyncio.sleep(3)
-            logger.info("✅ Conexão mantida por 3 segundos - OK!")
-            return True
+            try:
+                response = await asyncio.wait_for(websocket.recv(), timeout=5.0) # Aumente o timeout se necessário
+                logger.info(f"📥 Servidor respondeu ao BootNotification: {response}")
+                # Verifique se a resposta é um CallResult (tipo 3) para BootNotification
+                resp_data = json.loads(response)
+                if len(resp_data) >= 3 and resp_data[0] == 3 and resp_data[1] == "test_conn_boot":
+                    logger.info("✅ BootNotification aceito. Conexão OK!")
+                    await asyncio.sleep(3) # Keep connection alive for a bit
+                    return True
+                else:
+                    logger.error(f"❌ Resposta inesperada ao BootNotification: {response}")
+                    return False
+            except asyncio.TimeoutError:
+                logger.error("⏰ Timeout aguardando resposta ao BootNotification.")
+                return False
+            except Exception as e:
+                logger.error(f"❌ Erro ao processar resposta do BootNotification: {e}")
+                return False
 
     except Exception as e:
         logger.error(f"❌ Erro na conexão: {e}")
