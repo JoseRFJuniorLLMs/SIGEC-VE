@@ -83,7 +83,7 @@ class SimulatorTester:
         """Corrige imports faltantes no simulador de charge point"""
         logger.info("🔧 Corrigindo imports no charge_point_simulator.py...")
 
-        file_path = './ev_charging_system/simulator/charge_point_simulator.py'
+        file_path = 'D:\dev\SIGEC-VE\pythonProject\ev_charging_system\simulator\charge_point_simulator.py'
 
         try:
             with open(file_path, 'r') as f:
@@ -130,10 +130,10 @@ class SimulatorTester:
         try:
             # Executa o servidor OCPP em processo separado
             process = subprocess.Popen([
-                sys.executable, './ev_charging_system/core/ocpp_server.py'
+                sys.executable, '../core/ocpp_server.py'
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-            self.processes.append(('OCPP Server', process))
+            self.processes.append(('OCPP Server-->>', process))
 
             # Aguarda um pouco para o servidor inicializar
             await asyncio.sleep(3)
