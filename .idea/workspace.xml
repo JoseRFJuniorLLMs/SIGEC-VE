@@ -4,14 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 30/05/2025">
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/server_test.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/start_server.py" afterDir="false" />
+    <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="update 01/06/2025">
+      <change afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_server.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -403,7 +398,23 @@
       <option name="project" value="LOCAL" />
       <updated>1748644336938</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="update 01/06/2025">
+      <option name="closed" value="true" />
+      <created>1748745801708</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1748745801708</updated>
+    </task>
+    <task id="LOCAL-00026" summary="update 01/06/2025">
+      <option name="closed" value="true" />
+      <created>1748745838630</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1748745838630</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -421,6 +432,7 @@
     <MESSAGE value="begin update 28/05/2025" />
     <MESSAGE value="begin update 29/05/2025" />
     <MESSAGE value="begin update 30/05/2025" />
-    <option name="LAST_COMMIT_MESSAGE" value="begin update 30/05/2025" />
+    <MESSAGE value="update 01/06/2025" />
+    <option name="LAST_COMMIT_MESSAGE" value="update 01/06/2025" />
   </component>
 </project>
