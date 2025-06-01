@@ -130,7 +130,7 @@ async def on_change_availability(charge_point: ChargePoint, connector_id: int, t
 async def start_charge_point(cp_id: str, csms_url: str):
     logger.info(f"Iniciando Charge Point '{cp_id}' conectando a {csms_url}")
     try:
-        async with websockets.connect(f"{csms_url}/{cp_id}", subprotocols=['ocpp1.6']) as websocket:
+        async with websockets.connect(f"{csms_url}/{cp_id}", subprotocols=['ocpp2.0', 'ocpp2.0.1']) as websocket:
             charge_point = ChargePoint(cp_id, websocket)
 
             # Define os handlers para as mensagens que o CSMS pode enviar para o CP

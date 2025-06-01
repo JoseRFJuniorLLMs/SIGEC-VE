@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
 # Initialize FastAPI app with lifespan
 app = FastAPI(
     title="SIGEC-VE - Sistema Integrado de Gerenciamento de Estações de Carregamento para Veículos Elétricos",
-    description="API para gerenciar estações de carregamento de veículos elétricos compatíveis com OCPP 1.6",
+    description="API para gerenciar estações de carregamento de veículos elétricos compatíveis com OCPP 2.0",
     version="1.0.0",
     lifespan=lifespan, # Atribui o gerenciador de lifespan
 )

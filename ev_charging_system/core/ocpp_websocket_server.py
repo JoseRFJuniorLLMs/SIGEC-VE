@@ -27,7 +27,7 @@ class OCPPWebSocketServer:
             self.handle_connection,
             self.host,
             self.port,
-            subprotocols=['ocpp1.6'] # Define o subprotocolo OCPP 1.6
+            subprotocols=['ocpp2.0', 'ocpp2.0.1']# Define o subprotocolo OCPP 1.6
         )
         logger.info(f"OCPP WebSocket Server started on ws://{self.host}:{self.port}")
         await self.server.wait_closed() # Mantém o servidor rodando até ser fechado explicitamente

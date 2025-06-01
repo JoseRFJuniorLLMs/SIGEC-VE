@@ -1,8 +1,5 @@
-# server_test.py - Enhanced test for OCPP Server with better diagnostics
-
 import asyncio
 import websockets
-import socket
 import json
 import logging
 from datetime import datetime
@@ -11,204 +8,359 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def check_port_open(host, port):
-    """Check if a port is open and listening"""
+async def test_connection_only():
+    """Testa apenas a conexão sem enviar mensagens"""
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
-        result = sock.connect_ex((host, port))
-        sock.close()
-        return result == 0
+        logger.info("🔄 Testando conexão OCPP 2.0 sem enviar mensagens...")
+
+        async with websockets.connect(
+                "ws://localhost:9000",
+                subprotocols=['ocpp2.0', 'ocpp2.0.1'],  # Mudança principal aqui
+                timeout=10
+        ) as websocket:
+            logger.info(f"✅ Conectado! Subprotocol: {websocket.subprotocol}")
+
+            # Aguarda um pouco para ver se o servidor envia algo
+            try:
+                msg = await asyncio.wait_for(websocket.recv(), timeout=2.0)
+                logger.info(f"📥 Servidor enviou: {msg}")
+            except asyncio.TimeoutError:
+                logger.info("⏰ Servidor não enviou nada (normal)")
+
+            # Mantém conexão viva por alguns segundos
+            await asyncio.sleep(3)
+            logger.info("✅ Conexão mantida por 3 segundos - OK!")
+            return True
+
     except Exception as e:
-        logger.error(f"Error checking port: {e}")
+        logger.error(f"❌ Erro na conexão: {e}")
         return False
 
 
-async def test_websocket_with_headers():
-    """Test WebSocket connection with proper headers"""
-    uri = "ws://localhost:8001/ws/CP-SIMPLE-TEST"
-
-    # Try with various header combinations
-    header_combinations = [
-        # Standard OCPP headers
-        {
-            "Sec-WebSocket-Protocol": "ocpp2.0.1",
-            "User-Agent": "OCPP-Test-Client/1.0"
-        },
-        # Alternative headers
-        {
-            "Sec-WebSocket-Protocol": "ocpp1.6",
-            "User-Agent": "OCPP-Test-Client/1.0"
-        },
-        # Minimal headers
-        {
-            "User-Agent": "OCPP-Test-Client/1.0"
-        }
+async def test_simple_messages():
+    """Testa mensagens muito simples"""
+    simple_messages = [
+        # Mensagem vazia
+        "{}",
+        # Array vazio
+        "[]",
+        # Ping simples
+        '["ping"]',
+        # Mensagem OCPP 2.0 mais simples possível
+        '[2, "test", "Heartbeat", {}]'
     ]
 
-    for i, headers in enumerate(header_combinations):
+    for msg in simple_messages:
         try:
-            logger.info(f"Trying connection with headers set {i + 1}: {headers}")
-            async with websockets.connect(uri, extra_headers=headers) as websocket:
-                logger.info(f"✅ Connection successful with headers: {headers}")
-                logger.info(f"Selected subprotocol: {websocket.subprotocol}")
-                return True
+            logger.info(f"🔄 Testando mensagem: {msg}")
+
+            async with websockets.connect(
+                    "ws://localhost:9000",
+                    subprotocols=['ocpp2.0', 'ocpp2.0.1'],
+                    timeout=5
+            ) as websocket:
+
+                await websocket.send(msg)
+                logger.info(f"📤 Enviado: {msg}")
+
+                try:
+                    response = await asyncio.wait_for(websocket.recv(), timeout=3.0)
+                    logger.info(f"📥 Resposta: {response}")
+                    logger.info("✅ Mensagem aceita!")
+                    return msg  # Retorna a primeira mensagem que funcionou
+
+                except asyncio.TimeoutError:
+                    logger.info("⏰ Timeout - mas não fechou conexão")
+
+        except websockets.exceptions.ConnectionClosed as e:
+            logger.info(f"❌ Conexão fechada: {e.code} - {e.reason}")
         except Exception as e:
-            logger.info(f"❌ Failed with headers {headers}: {e}")
-            continue
-
-    return False
-
-
-async def test_different_endpoints():
-    """Test different endpoint paths"""
-    base_url = "ws://localhost:9000"
-    endpoints_to_try = [
-        "/CP-SIMPLE-TEST",
-        "/ocpp",
-        "/ws",
-        "/",
-        "/CP_001",
-        "/chargepoint",
-        "/station"
-    ]
-
-    for endpoint in endpoints_to_try:
-        uri = f"{base_url}{endpoint}"
-        try:
-            logger.info(f"Trying endpoint: {endpoint}")
-            async with websockets.connect(uri, subprotocols=['ocpp2.0.1']) as websocket:
-                logger.info(f"✅ Successfully connected to endpoint: {endpoint}")
-                logger.info(f"Selected subprotocol: {websocket.subprotocol}")
-                return endpoint
-        except Exception as e:
-            logger.info(f"❌ Failed to connect to {endpoint}: {e}")
-            continue
+            logger.error(f"❌ Erro: {e}")
 
     return None
 
 
-async def test_ocpp_message():
-    """Try to send a simple OCPP message"""
-    uri = "ws://localhost:8001/ws/CP-MESSAGE-TEST"
+async def test_ocpp20_messages():
+    """Testa mensagens OCPP 2.0 específicas"""
 
-    # Simple BootNotification message (OCPP 2.0.1 format)
-    boot_notification = [
-        2,  # MessageType: CALL
-        "12345",  # MessageId
-        "BootNotification",  # Action
-        {
+    # Diferentes formatos de BootNotification para OCPP 2.0
+    boot_messages = [
+        # Formato 1: OCPP 2.0 básico
+        [2, "1", "BootNotification", {
             "chargingStation": {
-                "model": "TestModel",
-                "vendorName": "TestVendor"
+                "vendorName": "TestVendor",
+                "model": "TestModel"
             },
             "reason": "PowerUp"
-        }
+        }],
+
+        # Formato 2: OCPP 2.0 completo
+        [2, "2", "BootNotification", {
+            "chargingStation": {
+                "vendorName": "TestVendor",
+                "model": "TestModel",
+                "serialNumber": "CS-001",
+                "firmwareVersion": "1.0.0"
+            },
+            "reason": "PowerUp"
+        }],
+
+        # Formato 3: OCPP 2.0 com campos opcionais
+        [2, "3", "BootNotification", {
+            "chargingStation": {
+                "vendorName": "TestVendor",
+                "model": "TestModel",
+                "serialNumber": "CS-001",
+                "firmwareVersion": "1.0.0",
+                "modem": {
+                    "iccid": "89860000000000000000",
+                    "imsi": "001010000000000"
+                }
+            },
+            "reason": "PowerUp"
+        }]
     ]
 
+    for i, boot_msg in enumerate(boot_messages, 1):
+        try:
+            logger.info(f"🔄 Testando BootNotification OCPP 2.0 formato {i}...")
+
+            async with websockets.connect(
+                    "ws://localhost:9000",
+                    subprotocols=['ocpp2.0', 'ocpp2.0.1'],
+                    timeout=5
+            ) as websocket:
+
+                msg_str = json.dumps(boot_msg)
+                logger.info(f"📤 Enviando: {msg_str}")
+                await websocket.send(msg_str)
+
+                try:
+                    response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                    logger.info(f"📥 Resposta: {response}")
+
+                    # Tenta parsear a resposta
+                    try:
+                        resp_data = json.loads(response)
+                        if len(resp_data) >= 3:
+                            msg_type = resp_data[0]
+                            msg_id = resp_data[1]
+                            if msg_type == 3:  # CallResult
+                                logger.info("✅ CallResult recebido - BootNotification aceito!")
+                                return boot_msg
+                            elif msg_type == 4:  # CallError
+                                logger.info(f"❌ CallError: {resp_data[3]} - {resp_data[4]}")
+                    except:
+                        logger.info("📄 Resposta não é JSON válido")
+
+                except asyncio.TimeoutError:
+                    logger.info("⏰ Timeout aguardando resposta")
+
+        except websockets.exceptions.ConnectionClosed as e:
+            logger.info(f"❌ Conexão fechada código {e.code}: {e.reason}")
+        except Exception as e:
+            logger.error(f"❌ Erro: {e}")
+
+    return None
+
+
+async def test_heartbeat_ocpp20():
+    """Testa Heartbeat OCPP 2.0"""
+    heartbeat_msg = [2, "hb1", "Heartbeat", {}]
+
     try:
-        logger.info("Attempting to send OCPP BootNotification message...")
-        async with websockets.connect(uri, subprotocols=['ocpp2.0.1']) as websocket:
-            logger.info("✅ WebSocket connected, sending message...")
+        logger.info("🔄 Testando Heartbeat OCPP 2.0...")
 
-            message = json.dumps(boot_notification)
-            await websocket.send(message)
-            logger.info(f"📤 Sent: {message}")
+        async with websockets.connect(
+                "ws://localhost:9000",
+                subprotocols=['ocpp2.0', 'ocpp2.0.1'],
+                timeout=5
+        ) as websocket:
 
-            # Wait for response
+            msg_str = json.dumps(heartbeat_msg)
+            logger.info(f"📤 Enviando Heartbeat: {msg_str}")
+            await websocket.send(msg_str)
+
             try:
-                response = await asyncio.wait_for(websocket.recv(), timeout=10.0)
-                logger.info(f"📥 Received: {response}")
+                response = await asyncio.wait_for(websocket.recv(), timeout=3.0)
+                logger.info(f"📥 Resposta Heartbeat: {response}")
                 return True
             except asyncio.TimeoutError:
-                logger.warning("⏰ No response received within 10 seconds")
-                return True  # Connection worked, just no response
+                logger.info("⏰ Timeout no Heartbeat")
 
     except Exception as e:
-        logger.error(f"❌ Failed to send OCPP message: {e}")
-        return False
+        logger.error(f"❌ Erro no Heartbeat: {e}")
+
+    return False
 
 
-async def diagnose_server_response():
-    """Try to get more information about the server's response"""
-    uri = "ws://localhost:9000/CP-SIMPLE-TEST"
+async def test_with_charger_id():
+    """Testa com ID do carregador no path"""
+    charger_paths = [
+        "ws://localhost:9000/CP001",
+        "ws://localhost:9000/charger1",
+        "ws://localhost:9000/station1"
+    ]
 
-    try:
-        logger.info("Attempting raw HTTP connection for diagnosis...")
+    boot_msg = [2, "1", "BootNotification", {
+        "chargingStation": {
+            "vendorName": "TestVendor",
+            "model": "TestModel"
+        },
+        "reason": "PowerUp"
+    }]
 
-        # Try to connect without WebSocket upgrade to see raw response
-        import aiohttp
-
+    for path in charger_paths:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get('http://localhost:9000/CP-SIMPLE-TEST') as response:
-                    logger.info(f"HTTP Response Status: {response.status}")
-                    logger.info(f"HTTP Response Headers: {dict(response.headers)}")
-                    text = await response.text()
-                    logger.info(f"HTTP Response Body: {text[:200]}...")
-        except Exception as e:
-            logger.info(f"HTTP connection attempt: {e}")
+            logger.info(f"🔄 Testando path: {path}")
 
-    except ImportError:
-        logger.info("aiohttp not available for HTTP diagnosis")
+            async with websockets.connect(
+                    path,
+                    subprotocols=['ocpp2.0', 'ocpp2.0.1'],
+                    timeout=5
+            ) as websocket:
+
+                msg_str = json.dumps(boot_msg)
+                await websocket.send(msg_str)
+                logger.info(f"📤 Enviado para {path}")
+
+                try:
+                    response = await asyncio.wait_for(websocket.recv(), timeout=3.0)
+                    logger.info(f"📥 Resposta: {response}")
+                    logger.info(f"✅ Path funcionou: {path}")
+                    return path
+
+                except asyncio.TimeoutError:
+                    logger.info("⏰ Timeout")
+
+        except Exception as e:
+            logger.info(f"❌ Path {path} falhou: {str(e)[:50]}...")
+
+    return None
+
+
+async def monitor_server_behavior():
+    """Monitora o comportamento do servidor"""
+    try:
+        logger.info("🔄 Monitorando comportamento do servidor OCPP 2.0...")
+
+        async with websockets.connect(
+                "ws://localhost:9000",
+                subprotocols=['ocpp2.0', 'ocpp2.0.1'],
+                timeout=10
+        ) as websocket:
+
+            logger.info("✅ Conectado - aguardando qualquer mensagem do servidor...")
+
+            # Aguarda para ver se o servidor envia algo espontaneamente
+            for i in range(5):
+                try:
+                    msg = await asyncio.wait_for(websocket.recv(), timeout=2.0)
+                    logger.info(f"📥 Servidor enviou espontaneamente: {msg}")
+                except asyncio.TimeoutError:
+                    logger.info(f"⏰ Tentativa {i + 1}/5 - nada recebido")
+
+            # Envia uma mensagem inválida para ver o que acontece
+            logger.info("📤 Enviando mensagem inválida para testar...")
+            await websocket.send("mensagem_invalida")
+
+            try:
+                error_response = await asyncio.wait_for(websocket.recv(), timeout=3.0)
+                logger.info(f"📥 Resposta ao erro: {error_response}")
+            except asyncio.TimeoutError:
+                logger.info("⏰ Sem resposta ao erro")
+            except websockets.exceptions.ConnectionClosed as e:
+                logger.info(f"🔌 Servidor fechou conexão: {e.code} - {e.reason}")
+
     except Exception as e:
-        logger.info(f"Diagnosis attempt failed: {e}")
+        logger.error(f"❌ Erro no monitoramento: {e}")
+
+
+async def test_protocol_versions():
+    """Testa diferentes versões do protocolo OCPP"""
+    protocols = [
+        ['ocpp2.0'],
+        ['ocpp2.0.1'],
+        ['ocpp2.1'],
+        ['ocpp1.6'],  # Para comparação
+        ['ocpp2.0', 'ocpp2.0.1'],
+        ['ocpp2.0', 'ocpp1.6']
+    ]
+
+    for protocol_list in protocols:
+        try:
+            logger.info(f"🔄 Testando protocolo(s): {protocol_list}")
+
+            async with websockets.connect(
+                    "ws://localhost:9000",
+                    subprotocols=protocol_list,
+                    timeout=5
+            ) as websocket:
+
+                logger.info(f"✅ Conectado com: {websocket.subprotocol}")
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            logger.info(f"❌ Protocolo {protocol_list} falhou: {str(e)[:100]}...")
 
 
 async def main():
-    """Main diagnostic function"""
-    logger.info("🔍 Starting Enhanced OCPP Server Diagnostics...")
-    logger.info("=" * 60)
+    """Função principal de diagnóstico detalhado para OCPP 2.0"""
+    logger.info("🔍 Diagnóstico Detalhado OCPP 2.0 Server")
+    logger.info("=" * 50)
 
-    # Step 1: Check if port is open
-    logger.info("Step 1: Checking if port 9000 is open...")
-    if check_port_open('localhost', 9000):
-        logger.info("✅ Port 9000 is open and listening")
-    else:
-        logger.error("❌ Port 9000 is not open or not listening")
-        logger.error("Make sure your OCPP server is running!")
+    # Teste 0: Diferentes protocolos
+    logger.info("\n0️⃣ Testando versões de protocolo...")
+    await test_protocol_versions()
+
+    # Teste 1: Conexão pura
+    logger.info("\n1️⃣ Teste de conexão pura OCPP 2.0...")
+    connection_ok = await test_connection_only()
+
+    if not connection_ok:
+        logger.error("❌ Não conseguiu conectar com OCPP 2.0!")
         return
 
-    # Step 2: Diagnose server response
-    logger.info("\nStep 2: Diagnosing server response...")
-    await diagnose_server_response()
+    # Teste 2: Monitorar comportamento
+    logger.info("\n2️⃣ Monitorando comportamento do servidor...")
+    await monitor_server_behavior()
 
-    # Step 3: Test different endpoints
-    logger.info("\nStep 3: Testing different endpoints...")
-    working_endpoint = await test_different_endpoints()
+    # Teste 3: Mensagens simples
+    logger.info("\n3️⃣ Testando mensagens simples...")
+    working_msg = await test_simple_messages()
 
-    if working_endpoint:
-        logger.info(f"✅ Found working endpoint: {working_endpoint}")
-    else:
-        logger.info("❌ No working endpoints found")
+    if working_msg:
+        logger.info(f"✅ Mensagem que funcionou: {working_msg}")
 
-    # Step 4: Test with different headers
-    logger.info("\nStep 4: Testing with different headers...")
-    headers_work = await test_websocket_with_headers()
+    # Teste 4: Heartbeat OCPP 2.0
+    logger.info("\n4️⃣ Testando Heartbeat OCPP 2.0...")
+    heartbeat_ok = await test_heartbeat_ocpp20()
 
-    # Step 5: Try to send an OCPP message
-    if headers_work or working_endpoint:
-        logger.info("\nStep 5: Testing OCPP message exchange...")
-        message_works = await test_ocpp_message()
+    # Teste 5: OCPP 2.0 BootNotification
+    logger.info("\n5️⃣ Testando BootNotification OCPP 2.0...")
+    working_boot = await test_ocpp20_messages()
 
-        if message_works:
-            logger.info("✅ OCPP message exchange successful!")
-        else:
-            logger.info("❌ OCPP message exchange failed")
+    if working_boot:
+        logger.info(f"✅ BootNotification que funcionou: {working_boot}")
 
-    # Final summary
-    logger.info("\n" + "=" * 60)
-    logger.info("🏁 DIAGNOSTIC SUMMARY:")
-    logger.info(f"Port 9000 open: ✅")
-    logger.info(f"Working endpoint found: {'✅' if working_endpoint else '❌'}")
-    logger.info(f"Headers working: {'✅' if headers_work else '❌'}")
+    # Teste 6: Paths com charger ID
+    logger.info("\n6️⃣ Testando paths com charger ID...")
+    working_path = await test_with_charger_id()
 
-    if not (working_endpoint or headers_work):
-        logger.error("\n💡 RECOMMENDATIONS:")
-        logger.error("1. Check if your OCPP server requires specific subprotocols")
-        logger.error("2. Verify the server is configured to accept WebSocket connections")
-        logger.error("3. Check server logs for more detailed error information")
-        logger.error("4. Try starting the server with different configuration")
+    if working_path:
+        logger.info(f"✅ Path que funcionou: {working_path}")
+
+    # Resumo
+    logger.info("\n" + "=" * 50)
+    logger.info("📋 RESUMO DETALHADO OCPP 2.0:")
+    logger.info("✅ Testando com subprotocols 'ocpp2.0' e 'ocpp2.0.1'")
+    logger.info("✅ Mensagens BootNotification adaptadas para OCPP 2.0")
+    logger.info("✅ Estrutura de dados OCPP 2.0 (chargingStation object)")
+    logger.info("\n💡 PRINCIPAIS DIFERENÇAS OCPP 1.6 vs 2.0:")
+    logger.info("• Subprotocol: 'ocpp1.6' → 'ocpp2.0'")
+    logger.info("• BootNotification: campos diretos → objeto 'chargingStation'")
+    logger.info("• Novos campos obrigatórios como 'reason'")
+    logger.info("• Estrutura de dados mais hierárquica")
 
 
 if __name__ == "__main__":

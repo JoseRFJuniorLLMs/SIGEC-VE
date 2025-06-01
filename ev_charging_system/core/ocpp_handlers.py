@@ -45,7 +45,7 @@ class OCPPServer:
             self._handle_connection,
             self.host,
             self.port,
-            subprotocols=['ocpp2.0.1']  # *** MUDANÇA AQUI: Subprotocolo para OCPP 2.0.1 ***
+            subprotocols=['ocpp2.0', 'ocpp2.0.1']  # *** MUDANÇA AQUI: Subprotocolo para OCPP 2.0.1 ***
         )
 
         self._running = True

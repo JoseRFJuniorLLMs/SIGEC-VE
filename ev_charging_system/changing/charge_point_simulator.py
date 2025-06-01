@@ -89,7 +89,7 @@ async def start_charge_point(cp_id: str, csms_url: str):
     logger.info(f"Iniciando Charge Point '{cp_id}' conectando a {csms_url}/{cp_id}")
     try:
         async with websockets.connect(
-            csms_url + f"/{cp_id}", subprotocols=["ocpp1.6"]
+            csms_url + f"/{cp_id}", subprotocols=['ocpp2.0', 'ocpp2.0.1']
         ) as websocket:
             # Instancia sua classe personalizada ChargePoint
             charge_point = ChargePoint(cp_id, websocket)
