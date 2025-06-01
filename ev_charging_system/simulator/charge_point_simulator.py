@@ -31,117 +31,87 @@ async def on_boot_notification(charge_point: OCPPCp, **kwargs):
 
 
 async def _send_meter_values(charge_point: OCPPCp, evse_id: int, transaction_id: str, meter_start: int):
-    # Simulate meter values being sent periodically
+    # Simular o envio de MeterValues periodicamente
+    logger.info(f"CP {charge_point.id}: Iniciando envio de MeterValues para Transação {transaction_id} no EVSE {evse_id}...")
     meter_value = meter_start
-    while True:
-        try:
-            meter_value += random.randint(1, 5)  # Simulate energy consumption
-            meter_data = [
-                ocpp_datatypes_v201.MeterValue(
-                    timestamp=datetime.now(timezone.utc).isoformat(),
-                    sampled_value=[
-                        ocpp_datatypes_v201.SampledValue(
-                            value=str(meter_value),
-                            measurand=ocpp_enums_v201.MeasurandType.energy_active_import_register,
-                            unit_of_measure=ocpp_datatypes_v201.UnitOfMeasure(
-                                unit=ocpp_enums_v201.MeasurandUnitType.wh
-                            )
-                        )
-                    ]
-                )
-            ]
+    try:
+        while True:
+            await asyncio.sleep(5)  # Envia MeterValues a cada 5 segundos
+            meter_value += random.uniform(0.1, 0.5)  # Simula consumo de energia
+            logger.info(f"CP {charge_point.id}: Enviando MeterValue {meter_value:.2f} kWh para Transação {transaction_id} no EVSE {evse_id}")
 
-            # Criar a mensagem MeterValues para a versão 2.0.1
-            meter_values_request = ocpp_call_v201.MeterValues(
+            meter_data = ocpp_datatypes_v201.MeterValueType(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                sampled_value=[
+                    ocpp_datatypes_v201.SampledValueType(
+                        value=str(round(meter_value, 2)),
+                        unit=ocpp_enums_v201.UnitOfMeasureEnumType.kwh,
+                        measurand=ocpp_enums_v201.MeasurandEnumType.energy_active_import_register
+                    )
+                ]
+            )
+            request = ocpp_call_v201.MeterValues(
                 evse_id=evse_id,
-                meter_value=meter_data,
+                meter_value=[meter_data],
                 transaction_id=transaction_id
             )
-
-            logger.info(
-                f"CP {charge_point.id}: Enviando MeterValues para Transação {transaction_id}, EVSE {evse_id}: {meter_value} Wh")
-            response = await charge_point.call(meter_values_request)
-
-            # Aqui você pode adicionar lógica para verificar a resposta se necessário
-            # Ex: if response.status == ocpp_enums_v201.RequestStartStopStatusType.accepted:
-            #     logger.info("MeterValues aceito.")
-
-            await asyncio.sleep(10)  # Send meter values every 10 seconds
-        except asyncio.CancelledError:
-            logger.info(
-                f"CP {charge_point.id}: Envio de MeterValues cancelado para Transação {transaction_id}, EVSE {evse_id}.")
-            break
-        except Exception as e:
-            logger.error(f"CP {charge_point.id}: Erro no envio de MeterValues: {e}")
-            break
-
-
-async def send_heartbeats(charge_point: OCPPCp):
-    """Envia Heartbeat a cada intervalo."""
-    while True:
-        try:
-            request = ocpp_call_v201.Heartbeat()
             await charge_point.call(request)
-            logger.info(f"CP {charge_point.id}: Heartbeat enviado.")
-            await asyncio.sleep(300)  # Intervalo de heartbeat (5 minutos)
-        except asyncio.CancelledError:
-            logger.info(f"CP {charge_point.id}: Heartbeat task cancelada.")
-            break
-        except Exception as e:
-            logger.error(f"CP {charge_point.id}: Erro ao enviar Heartbeat: {e}")
-            await asyncio.sleep(60)  # Tenta novamente após um tempo se houver erro
+    except asyncio.CancelledError:
+        logger.info(f"CP {charge_point.id}: Envio de MeterValues cancelado para Transação {transaction_id}.")
+    except Exception as e:
+        logger.error(f"CP {charge_point.id}: Erro no envio de MeterValues para Transação {transaction_id}: {e}", exc_info=True)
 
 
 async def start_charge_point(cp_id: str, csms_url: str):
     logger.info(f"CP {cp_id}: Tentando conectar ao CSMS em {csms_url}...")
+    websocket = None
     heartbeat_task = None
     try:
-        async with websockets.connect(csms_url, subprotocols=['ocpp2.0.1']) as websocket:
-            charge_point = OCPPCp(cp_id, websocket)
+        async with websockets.connect(f"{csms_url}/{cp_id}", subprotocols=['ocpp2.0.1']) as ws:
+            charge_point = OCPPCp(cp_id, ws)
+
             logger.info(f"CP {cp_id}: Conectado ao CSMS. Enviando BootNotification...")
 
-            # Envia BootNotification
-            boot_notification_request = ocpp_call_v201.BootNotification(
-                reason=ocpp_enums_v201.BootReasonEnumType.PowerUp, # Linha corrigida aqui
-                charging_station={
-                    'model': 'EV-Charge-Simulator',
-                    'vendor_name': 'SIGEC-VE',
-                    'firmware_version': '1.0.0',
-                    'serial_number': f'CP-SN-{cp_id.split("_")[1]}'
-                }
+            # Use ocpp_enums_v201.BootReasonEnum.PowerUp
+            boot_notification_payload = ocpp_call_v201.BootNotification(
+                reason=ocpp_enums_v201.BootReasonEnumType.power_up, # Changed from PowerUp to power_up
+                charging_station=ocpp_datatypes_v201.ChargingStationType(
+                    model='Simulator_Model',
+                    vendor_name='Simulator_Vendor',
+                    firmware_version='1.0.0'
+                )
             )
+            await charge_point.call(boot_notification_payload)
+            logger.info(f"CP {cp_id}: BootNotification enviado.")
 
-            response = await charge_point.call(boot_notification_request)
+            # Iniciar a tarefa de heartbeat
+            heartbeat_task = asyncio.create_task(send_heartbeats(charge_point))
 
-            if response.status == ocpp_enums_v201.RegistrationStatusType.accepted:
-                logger.info(f"CP {cp_id}: Conectado e aceito pelo CSMS! Status: {response.status}")
+            # Loop principal para manter a conexão aberta e processar mensagens
+            while True:
+                try:
+                    message = await asyncio.wait_for(ws.recv(), timeout=60)
+                    logger.debug(f"CP {cp_id}: Mensagem recebida: {message}")
+                    await charge_point.process_message(message)
+                except asyncio.TimeoutError:
+                    logger.warning(f"CP {charge_point.id}: Tempo limite de recebimento de mensagem excedido. Verificando conexão...")
+                    # O heartbeat deve manter a conexão viva, mas isso serve como um fallback.
+                    pass
+                except websockets.exceptions.ConnectionClosedOK:
+                    logger.info(f"CP {charge_point.id}: Conexão fechada normalmente.")
+                    break
+                except websockets.exceptions.ConnectionClosedError as e:
+                    logger.error(f"CP {cp_id}: Conexão fechada com erro: {e}", exc_info=True)
+                    break
 
-                # Inicia a tarefa de heartbeat
-                if not heartbeat_task:
-                    heartbeat_task = asyncio.create_task(send_heartbeats(charge_point))
-
-                # Exemplo: Simular um StatusNotification para um conector
-                # (Assumindo que cada CP tem pelo menos um conector)
-                for i in range(1, 2):  # Para cada conector (ex: conector 1)
-                    status_notification_msg = ocpp_call_v201.StatusNotification(
-                        timestamp=datetime.now(timezone.utc).isoformat(),
-                        connector_status=ocpp_enums_v201.ConnectorStatusType.available,
-                        evse_id=i,
-                        connector_id=i
-                    )
-                    await charge_point.call(status_notification_msg)
-                await charge_point.start()
-            else:
-                logger.error(f"CP {cp_id}: Não aceito pelo CSMS. Status: {response.status}")
-
-    except websockets.exceptions.ConnectionClosedOK:
-        logger.info(f"CP {cp_id}: Conexão fechada normalmente pelo CSMS.")
-    except websockets.exceptions.ConnectionClosedError as e:
-        logger.warning(f"CP {cp_id}: Conexão fechada inesperadamente: {e}")
+    except ConnectionRefusedError:
+        logger.error(f"CP {cp_id}: Conexão recusada. Certifique-se de que o CSMS está em execução em {csms_url}.")
+    except websockets.exceptions.InvalidURI: # Changed from InvalidURIError to InvalidURI
+        logger.error(f"CP {cp_id}: URI do CSMS inválida: {csms_url}")
     except Exception as e:
-        logger.error(f"CP {cp_id}: Erro ao conectar Charge Point: {e}")
+        logger.error(f"CP {cp_id}: Erro ao conectar Charge Point: {e}", exc_info=True)
     finally:
-        # Clean up heartbeat task
+        logger.info(f"CP {cp_id}: Finalizando Charge Point.")
         if heartbeat_task:
             heartbeat_task.cancel()
             try:
@@ -157,6 +127,74 @@ async def start_charge_point(cp_id: str, csms_url: str):
             del current_transactions[cp_id]
 
 
+async def send_heartbeats(charge_point: OCPPCp):
+    # Envia Heartbeat a cada 30 segundos
+    while True:
+        await asyncio.sleep(30)
+        try:
+            logger.info(f"CP {charge_point.id}: Enviando Heartbeat...")
+            request = ocpp_call_v201.Heartbeat()
+            await charge_point.call(request)
+            logger.info(f"CP {charge_point.id}: Heartbeat enviado.")
+        except Exception as e:
+            logger.error(f"CP {charge_point.id}: Erro ao enviar Heartbeat: {e}")
+            break  # Sair do loop se houver um erro, indicando que a conexão pode ter caído
+
+
+@on('RequestStartTransaction')
+async def on_request_start_transaction(charge_point: OCPPCp, evse_id: int, id_token: ocpp_datatypes_v201.IdTokenType, **kwargs):
+    logger.info(f"CP {charge_point.id}: Recebido RequestStartTransaction para EVSE {evse_id} com ID Token '{id_token.id_token}'")
+
+    # Simular que o CP sempre aceita a transação
+    transaction_id = str(random.randint(1000, 9999))
+    meter_start = random.randint(1000, 5000)
+
+    # Iniciar a tarefa de envio de MeterValues para esta transação
+    charging_task = asyncio.create_task(
+        _send_meter_values(charge_point, evse_id, transaction_id, meter_start)
+    )
+
+    # Armazenar informações da transação
+    if charge_point.id not in current_transactions:
+        current_transactions[charge_point.id] = {}
+    current_transactions[charge_point.id][evse_id] = {
+        "transaction_id": transaction_id,
+        "meter_start": meter_start,
+        "charging_task": charging_task,
+        "id_token": id_token.id_token # Store the id_token for later use
+    }
+
+    response_payload = ocpp_call_v201.RequestStartTransactionPayload(
+        status=ocpp_enums_v201.RequestStartStopStatusEnumType.accepted,
+        transaction_id=transaction_id
+    )
+    return response_payload
+
+
+@on('RequestStopTransaction')
+async def on_request_stop_transaction(charge_point: OCPPCp, transaction_id: str, **kwargs):
+    logger.info(f"CP {charge_point.id}: Recebido RequestStopTransaction para Transação {transaction_id}")
+
+    # Encontrar e cancelar a tarefa de carregamento associada a esta transação
+    found_transaction = False
+    for evse_id, trx_info in current_transactions.get(charge_point.id, {}).items():
+        if trx_info.get("transaction_id") == transaction_id:
+            if trx_info.get("charging_task"):
+                trx_info["charging_task"].cancel()
+            del current_transactions[charge_point.id][evse_id]
+            found_transaction = True
+            logger.info(f"CP {charge_point.id}: Transação {transaction_id} no EVSE {evse_id} finalizada e tarefa de MeterValues cancelada.")
+            break
+
+    if not found_transaction:
+        logger.warning(f"CP {charge_point.id}: Transação {transaction_id} não encontrada para parar.")
+
+    response_payload = ocpp_call_v201.RequestStartStopStatusEnumType(
+        status=ocpp_enums_v201.RequestStartStopStatusEnumType.accepted
+    )
+    return response_payload
+
+
 if __name__ == '__main__':
     CSMS_URL = "ws://localhost:9000"
 
@@ -165,7 +203,9 @@ if __name__ == '__main__':
         logger.info("Iniciando simuladores de Charge Point...")
 
         tasks = []
-        charge_point_ids = ["CP_001", "CP_002", "CP_003"]  # Added one more for testing
+        # Importante: Os IDs dos CPs aqui (CP_001, CP_002, CP_003) precisam ser os mesmos
+        # que o simulador de EV vai tentar usar.
+        charge_point_ids = ["CP_001", "CP_002", "CP_003"]
 
         for cp_id in charge_point_ids:
             task = asyncio.create_task(start_charge_point(cp_id, CSMS_URL))
@@ -180,9 +220,8 @@ if __name__ == '__main__':
                 task.cancel()
             # Wait for all tasks to complete cancellation
             await asyncio.gather(*tasks,
-                                 return_exceptions=True)  # Use return_exceptions=True to avoid errors for already cancelled tasks
+                                 return_exceptions=True)
         finally:
             logger.info("Simuladores de Charge Point finalizados.")
-
 
     asyncio.run(main())
