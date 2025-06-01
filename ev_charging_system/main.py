@@ -9,6 +9,8 @@ import asyncio
 import os
 import logging
 import contextlib
+
+from typing import Dict, Optional
 from typing import Dict  # Importar Dict
 
 # Import models and database
