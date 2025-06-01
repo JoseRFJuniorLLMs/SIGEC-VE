@@ -5,34 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0854f7ee-bf76-4f19-ba98-b3616cf179be" name="Changes" comment="begin update 30/05/2025">
-      <change afterPath="$PROJECT_DIR$/.env.test" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_websocket_server.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/data/models.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/services/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/services/device_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/services/transaction_service.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/conftest.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/test_ocpp_server_connection.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/server_test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ev_charging_system/tests/start_server.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/business_logic/device_management_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/device_management_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/business_logic/transaction_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/business_logic/transaction_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/changing/charge_point_simulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/changing/charge_point_simulator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/core/connection_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/connection_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_central_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_central_manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_handlers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ev_charging_system/core/ocpp_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/core/ocpp_server.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/data/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/data/database.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/data/repositories.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/data/repositories.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/ev_charging_system/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/charge_point.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/llm_tool.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/transaction.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/models/user.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_completo.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ev_charging_system/tests/test_ocpp_app.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -81,6 +60,7 @@
     &quot;Python tests.Python tests for test_db_connection.test_db_connection.executor&quot;: &quot;Run&quot;,
     &quot;Python tests.Python tests in websocket.py.executor&quot;: &quot;Run&quot;,
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.server_test.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
@@ -97,7 +77,7 @@
       <recent name="D:\dev\SIGEC-VE\pythonProject\ev_charging_system\config" />
     </key>
   </component>
-  <component name="RunManager" selected="Docker.docker-compose.yml: Compose Deployment">
+  <component name="RunManager" selected="Python.server_test">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="SIGEC-VE" />
       <option name="ENV_FILES" value="" />
@@ -120,12 +100,26 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="Dockerfile" type="docker-deploy" factoryName="dockerfile" temporary="true" server-name="Docker">
-      <deployment type="dockerfile">
-        <settings>
-          <option name="sourceFilePath" value="Dockerfile" />
-        </settings>
-      </deployment>
+    <configuration name="server_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="SIGEC-VE" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/ev_charging_system/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ev_charging_system/tests/server_test.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
     <configuration default="true" type="docker-deploy" factoryName="docker-compose.yml" temporary="true">
@@ -193,11 +187,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.server_test" />
         <item itemvalue="Docker.docker-compose.yml: Compose Deployment" />
         <item itemvalue="Python tests.Python tests in D:/dev/SIGEC-VE/pythonProject/ev_charging_system/tests/websocket.py" />
         <item itemvalue="Python tests.Python tests for test_db_connection.test_db_connection" />
         <item itemvalue="Docker.docker-compose.yml.app: Compose Deployment" />
-        <item itemvalue="Docker.Dockerfile" />
       </list>
     </recent_temporary>
   </component>
