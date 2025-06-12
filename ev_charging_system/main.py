@@ -26,15 +26,14 @@ from ev_charging_system.core.ocpp_server import ocpp_server, connected_charge_po
 from ocpp.v201 import enums as ocpp_enums_v201
 
 # Importar Pydantic para definir modelos de requisição
-from pydantic import BaseModel # Certifique-se de que está importado
+from pydantic import BaseModel
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# --- Definição dos modelos Pydantic para eventos EV (NOVAS ADIÇÕES) ---
-# Estes modelos são usados para validar o corpo das requisições POST para eventos EV
+# --- Definição dos modelos Pydantic para eventos EV ---
 class EVPlugIn(BaseModel):
     ev_id: str
     charge_point_id: str
@@ -44,8 +43,7 @@ class EVUnPlug(BaseModel):
     ev_id: str
     charge_point_id: str
     connector_id: int
-    transaction_id: str # Adicionado para corresponder à necessidade do RemoteStopTransaction
-
+    transaction_id: str
 
 # --- Lifespan Context Manager ---
 @contextlib.asynccontextmanager
@@ -64,11 +62,9 @@ async def lifespan(app: FastAPI):
 
         # --- Start OCPP Server ---
         logger.info("Starting OCPP server...")
-        # Start OCPP server in a separate task
         asyncio.create_task(ocpp_server.start())
         logger.info("OCPP server started in background.")
 
-        # Ensure database and OCPP server are ready
         yield
     finally:
         logger.info("Shutting down SIGEC-VE application...")
@@ -76,7 +72,6 @@ async def lifespan(app: FastAPI):
         logger.info("Stopping OCPP server...")
         await ocpp_server.stop()
         logger.info("OCPP server stopped.")
-        # Optional: Dispose database engine if necessary
         engine.dispose()
         logger.info("Database engine disposed.")
 
@@ -112,7 +107,6 @@ async def read_root():
     </html>
     """
 
-
 # --- Charge Point Management ---
 @app.post("/api/charge_points", response_model=dict, status_code=status.HTTP_201_CREATED,
           summary="Register a new Charge Point")
@@ -120,14 +114,13 @@ async def register_charge_point(
         charge_point_id: str = Body(..., description="Unique ID of the Charge Point"),
         vendor_name: str = Body("Unknown", description="Vendor name of the Charge Point"),
         model: str = Body("Unknown", description="Model of the Charge Point"),
-        db: Session = Depends(get_db),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
     Registers a new Charge Point in the system.
     """
     try:
-        cp = service.register_charge_point(charge_point_id, vendor_name, model, db)
+        cp = service.register_charge_point(charge_point_id, vendor_name, model)
         return {
             "charge_point_id": cp.charge_point_id,
             "vendor_name": cp.vendor_name,
@@ -141,14 +134,12 @@ async def register_charge_point(
 
 @app.get("/api/charge_points", response_model=list, summary="List all Charge Points")
 async def list_charge_points(
-        db: Session = Depends(get_db),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
     Retrieves a list of all registered Charge Points.
     """
-    charge_points = service.get_all_charge_points(db)
-    # Convert ORM objects to dictionaries for Pydantic response model
+    charge_points = service.get_all_charge_points()
     return [{
         "charge_point_id": cp.charge_point_id,
         "vendor_name": cp.vendor_name,
@@ -171,13 +162,12 @@ async def list_charge_points(
 @app.get("/api/charge_points/{charge_point_id}", response_model=dict, summary="Get Charge Point details")
 async def get_charge_point_details(
         charge_point_id: str,
-        db: Session = Depends(get_db),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
     Retrieves details of a specific Charge Point by its ID.
     """
-    cp = service.get_charge_point_by_id(charge_point_id, db)
+    cp = service.get_charge_point_by_id(charge_point_id)
     if not cp:
         raise HTTPException(status_code=404, detail="Charge Point not found")
 
@@ -199,45 +189,15 @@ async def get_charge_point_details(
         } for conn in cp.connectors]
     }
 
-
 # --- Transaction Management ---
-# Existing transaction routes (start, stop, etc.) might need review to align with OCPP 2.0.1
-# For example, RemoteStartTransaction and RemoteStopTransaction are now triggered by EV events,
-# not directly by these /transactions/start/stop APIs.
-
-# This section will likely be removed or refactored as EV events directly trigger OCPP commands
-# @app.post("/api/transactions/start", response_model=dict, status_code=status.HTTP_201_CREATED, summary="Start a new transaction")
-# async def start_transaction(
-#     charge_point_id: str = Body(...),
-#     connector_id: int = Body(...),
-#     id_tag: str = Body(...),
-#     meter_start: int = Body(...),
-#     db: Session = Depends(get_db),
-#     service: DeviceManagementService = Depends(get_device_management_service)
-# ):
-#     # This logic is now handled by the /ev_events/plug_in and the OCPP layer
-#     pass
-
-# @app.post("/api/transactions/stop", response_model=dict, summary="Stop an active transaction")
-# async def stop_transaction(
-#     transaction_id: str = Body(...),
-#     meter_stop: int = Body(...),
-#     reason: str = Body("EVDisconnected"),
-#     db: Session = Depends(get_db),
-#     service: DeviceManagementService = Depends(get_device_management_service)
-# ):
-#     # This logic is now handled by the /ev_events/unplug and the OCPP layer
-#     pass
-
 @app.get("/api/transactions", response_model=list, summary="List all transactions")
 async def list_transactions(
-        db: Session = Depends(get_db),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
     Retrieves a list of all transactions.
     """
-    transactions = service.get_all_transactions(db)
+    transactions = service.get_all_transactions()
     return [{
         "transaction_id": trx.transaction_id,
         "charge_point_id": trx.charge_point_id,
@@ -260,13 +220,12 @@ async def list_transactions(
 @app.get("/api/transactions/{transaction_id}", response_model=dict, summary="Get transaction details")
 async def get_transaction_details(
         transaction_id: str,
-        db: Session = Depends(get_db),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
     Retrieves details of a specific transaction by its ID.
     """
-    trx = service.get_transaction_by_id(transaction_id, db)
+    trx = service.get_transaction_by_id(transaction_id)
     if not trx:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
@@ -295,9 +254,8 @@ async def get_transaction_details(
 async def remote_start_transaction(
         charge_point_id: str,
         connector_id: int = Body(...),
-        id_token: str = Body(...),  # Usar id_token aqui para compatibilidade
-        id_token_type: str = Body("ISO15118Certificate"),  # Tipo do ID Token
-        db: Session = Depends(get_db),
+        id_token: str = Body(...),
+        id_token_type: str = Body("ISO15118Certificate"),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
@@ -307,7 +265,6 @@ async def remote_start_transaction(
     if charge_point_id not in connected_charge_points:
         raise HTTPException(status_code=404, detail=f"Charge Point {charge_point_id} is not connected via OCPP.")
 
-    # id_token para OCPP 2.0.1 é um dicionário
     id_token_payload = {"idToken": id_token, "type": id_token_type}
 
     try:
@@ -318,7 +275,6 @@ async def remote_start_transaction(
             connector_id=connector_id
         )
         logger.info(f"API: RemoteStartTransaction sent to {charge_point_id}. Response: {response}")
-        # A resposta do CP será do tipo RemoteStartTransactionResponse, que tem um 'status'
         return {"message": "RemoteStartTransaction command sent.", "ocpp_response": response.to_dict()}
     except Exception as e:
         logger.error(f"Error sending RemoteStartTransaction to {charge_point_id}: {e}", exc_info=True)
@@ -330,7 +286,6 @@ async def remote_start_transaction(
 async def remote_stop_transaction(
         charge_point_id: str,
         transaction_id: str = Body(...),
-        db: Session = Depends(get_db),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
@@ -357,8 +312,7 @@ async def remote_stop_transaction(
 @app.post("/api/charge_points/{charge_point_id}/reset", response_model=dict, summary="Send Reset command to CP")
 async def reset_charge_point(
         charge_point_id: str,
-        reset_type: str = Body(..., description="Type of reset (Hard or Soft)"),  # Pode ser "Hard" ou "Soft"
-        db: Session = Depends(get_db),
+        reset_type: str = Body(..., description="Type of reset (Hard or Soft)"),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
@@ -369,7 +323,6 @@ async def reset_charge_point(
         raise HTTPException(status_code=404, detail=f"Charge Point {charge_point_id} is not connected via OCPP.")
 
     try:
-        # Validar reset_type para os enums do OCPP 2.0.1
         if reset_type.upper() not in [e.value for e in ocpp_enums_v201.ResetEnumType]:
             raise HTTPException(status_code=400,
                                 detail=f"Invalid reset_type. Must be one of: {', '.join([e.value for e in ocpp_enums_v201.ResetEnumType])}")
@@ -392,8 +345,6 @@ async def change_availability_charge_point(
         charge_point_id: str,
         connector_id: int = Body(...),
         operational_status: str = Body(..., description="Availability status (Operative or Inoperative)"),
-        # Use OperationalStatusEnumType
-        db: Session = Depends(get_db),
         service: DeviceManagementService = Depends(get_device_management_service)
 ):
     """
@@ -405,7 +356,6 @@ async def change_availability_charge_point(
         raise HTTPException(status_code=404, detail=f"Charge Point {charge_point_id} is not connected via OCPP.")
 
     try:
-        # Validar operational_status para os enums do OCPP 2.0.1
         if operational_status.upper() not in [e.value for e in ocpp_enums_v201.OperationalStatusEnumType]:
             raise HTTPException(status_code=400,
                                 detail=f"Invalid operational_status. Must be one of: {', '.join([e.value for e in ocpp_enums_v201.OperationalStatusEnumType])}")
@@ -413,9 +363,9 @@ async def change_availability_charge_point(
         response = await send_ocpp_command(
             charge_point_id,
             "ChangeAvailability",
-            evse_id=connector_id,  # evse_id é o mesmo que connector_id para um conector
+            evse_id=connector_id,
             connector_id=connector_id,
-            operational_status=operational_status.upper()  # Passar o enum correto
+            operational_status=operational_status.upper()
         )
         logger.info(f"API: ChangeAvailability command sent to {charge_point_id}. Response: {response}")
         return {"message": "ChangeAvailability command sent.", "ocpp_response": response.to_dict()}
@@ -424,28 +374,23 @@ async def change_availability_charge_point(
         raise HTTPException(status_code=500, detail=f"Failed to send ChangeAvailability command: {e}")
 
 
-# --- NEW EV Event Endpoints (NOVAS ROTAS ADICIONADAS) ---
+# --- NEW EV Event Endpoints ---
 @app.post("/api/ev_events/plug_in", summary="Simulate EV Plug-in event and initiate charging")
 async def ev_plug_in_event(
-        event: EVPlugIn, # Usando o modelo Pydantic para o corpo da requisição
-        db: Session = Depends(get_db),
+        event: EVPlugIn,
         csms_service: DeviceManagementService = Depends(get_device_management_service)
 ):
     logger.info(f"API: EV {event.ev_id} plugged into CP {event.charge_point_id}, connector {event.connector_id}")
 
-    # 1. Verificar se o CP está conectado ao CSMS via OCPP
     if event.charge_point_id not in connected_charge_points:
         raise HTTPException(status_code=404, detail=f"Charge Point {event.charge_point_id} is not connected via OCPP.")
 
-    # 2. Enviar RemoteStartTransaction para o CP via OCPP
-    # Definir id_token_type como "ISO15118Certificate" por padrão ou conforme necessário
     id_token_payload = {
         "idToken": event.ev_id,
-        "type": "ISO15118Certificate" # Assumindo um tipo para o exemplo
+        "type": "ISO15118Certificate"
     }
 
     try:
-        # send_ocpp_command retorna a resposta do CP (CallResult)
         ocpp_response = await send_ocpp_command(
             event.charge_point_id,
             "RemoteStartTransaction",
@@ -458,7 +403,7 @@ async def ev_plug_in_event(
         if ocpp_response.status == ocpp_enums_v201.RequestStartStopStatus.Accepted:
             return {"message": "EV Plug-in event received and RemoteStartTransaction sent to CP.",
                     "ocpp_response": ocpp_response.to_dict(),
-                    "transactionId": f"TEMP_{event.charge_point_id}_{event.connector_id}_{event.ev_id}"  # ID temporário para EV sim
+                    "transactionId": f"TEMP_{event.charge_point_id}_{event.connector_id}_{event.ev_id}"
                     }
         else:
             raise HTTPException(status_code=400,
@@ -471,18 +416,15 @@ async def ev_plug_in_event(
 
 @app.post("/api/ev_events/unplug", summary="Simulate EV Unplug event and stop charging")
 async def ev_unplug_event(
-        event: EVUnPlug, # Usando o modelo Pydantic para o corpo da requisição
-        db: Session = Depends(get_db),
+        event: EVUnPlug,
         csms_service: DeviceManagementService = Depends(get_device_management_service)
 ):
     logger.info(
         f"API: EV {event.ev_id} unplugged from CP {event.charge_point_id}, connector {event.connector_id}, transaction {event.transaction_id}")
 
-    # 1. Verificar se o CP está conectado ao CSMS via OCPP
     if event.charge_point_id not in connected_charge_points:
         raise HTTPException(status_code=404, detail=f"Charge Point {event.charge_point_id} is not connected via OCPP.")
 
-    # 2. Enviar RemoteStopTransaction para o CP via OCPP
     try:
         ocpp_response = await send_ocpp_command(
             event.charge_point_id,
@@ -557,14 +499,11 @@ async def get_user_details(
 async def health_check():
     """Application health check endpoint."""
     try:
-        # Check database connection
         db = next(get_db())
         db.execute(text("SELECT 1"))
         db.close()
 
-        # Check if OCPP server is running (by checking its internal state/port)
-        # This is a simplistic check, a more robust one would involve checking the actual websocket server
-        is_ocpp_server_running = ocpp_server._server is not None and ocpp_server._server.sockets  # Access internal, non-public attribute for simplicity
+        is_ocpp_server_running = ocpp_server._server is not None and ocpp_server._server.sockets
 
         return {
             "status": "ok",

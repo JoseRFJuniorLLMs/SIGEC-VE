@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 from sqlalchemy import exc as sa_exc
+from typing import List
 
 # Importe os modelos da sua ÚNICA FONTE DE VERDADE: ev_charging_system/data/models.py
 from ev_charging_system.data.models import ChargePoint, Connector, Transaction, User
@@ -14,10 +15,13 @@ class ChargePointRepository:
     def get_charge_point_by_id(self, cp_id: str) -> ChargePoint | None:
         return self.db.query(ChargePoint).filter(ChargePoint.charge_point_id == cp_id).first()
 
+    # MÉTODO ADICIONADO para resolver o erro
+    def get_all_charge_points(self) -> List[ChargePoint]:
+        return self.db.query(ChargePoint).all()
+
     def add_charge_point(self, charge_point: ChargePoint):
         self.db.add(charge_point)
-        # self.db.commit() # Não comitar aqui, o serviço deve gerenciar o commit
-        # self.db.refresh(charge_point) # Refresh também deve ser gerenciado pelo serviço se o commit não for aqui
+        # self.db.commit() # Correto: Não comitar aqui, o serviço deve gerenciar o commit
 
     def get_connector_by_id(self, cp_id: str, connector_id: int) -> Connector | None:
         return self.db.query(Connector).filter(
@@ -27,8 +31,6 @@ class ChargePointRepository:
 
     def add_connector(self, connector: Connector):
         self.db.add(connector)
-        # self.db.commit() # Não comitar aqui
-        # self.db.refresh(connector) # Refresh também deve ser gerenciado pelo serviço
 
 
 class TransactionRepository:
@@ -38,10 +40,12 @@ class TransactionRepository:
     def get_transaction_by_id(self, transaction_id: str) -> Transaction | None:
         return self.db.query(Transaction).filter(Transaction.transaction_id == transaction_id).first()
 
+    # MÉTODO ADICIONADO para corresponder à chamada no serviço
+    def get_all_transactions(self) -> List[Transaction]:
+        return self.db.query(Transaction).all()
+
     def add_transaction(self, transaction: Transaction):
         self.db.add(transaction)
-        # self.db.commit() # Não comitar aqui
-        # self.db.refresh(transaction) # Refresh também deve ser gerenciado pelo serviço
 
 
 class UserRepository:
@@ -59,9 +63,6 @@ class UserRepository:
 
     def add_user(self, user: User):
         self.db.add(user)
-        # self.db.commit() # Não comitar aqui
-        # self.db.refresh(user) # Refresh também deve ser gerenciado pelo serviço
 
     def delete_user(self, user: User):
         self.db.delete(user)
-        # self.db.commit() # Não comitar aqui
