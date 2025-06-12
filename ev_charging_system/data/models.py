@@ -7,6 +7,7 @@ from datetime import datetime
 # Esta instância Base é compartilhada por todos os seus modelos.
 Base = declarative_base()
 
+
 class ChargePoint(Base):
     """
     Model to represent a Charge Point (Charging Station) in the system.
@@ -15,19 +16,29 @@ class ChargePoint(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     charge_point_id = Column(String, unique=True, index=True, nullable=False)  # Ex: CP-SIGEC-001
-    status = Column(String, default="Offline")  # Online, Offline, Available, Preparing, Charging, Finishing, Reserved, Faulted
-    vendor = Column(String, nullable=True)
+    status = Column(String,
+                    default="Offline")  # Online, Offline, Available, Preparing, Charging, Finishing, Reserved, Faulted
+
+    # Campo 'vendor' foi renomeado para 'vendor_name' para corresponder ao resto da aplicação.
+    vendor_name = Column(String, nullable=True)
+
     model = Column(String, nullable=True)
-    last_heartbeat = Column(DateTime, default=datetime.utcnow)
+    last_heartbeat = Column(DateTime, nullable=True)
     firmware_version = Column(String, nullable=True)
     address = Column(String, nullable=True)  # Ex: Rua A, 123
     num_connectors = Column(Integer, default=1)  # Number of connectors in the CP
+
+    # Campos que faltavam adicionados para corrigir os erros
+    last_boot_notification = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships:
     # One Charge Point can have many Connectors
     connectors = relationship("Connector", back_populates="charge_point", cascade="all, delete-orphan", lazy="selectin")
     # One Charge Point can have many Transactions
-    transactions = relationship("Transaction", back_populates="charge_point", cascade="all, delete-orphan", lazy="selectin")
+    transactions = relationship("Transaction", back_populates="charge_point", cascade="all, delete-orphan",
+                                lazy="selectin")
 
 
 class Connector(Base):
@@ -49,9 +60,13 @@ class Connector(Base):
     max_amperage = Column(Integer, nullable=True)
     max_power = Column(Integer, nullable=True)  # In Watts or kW
 
+    # Campos que faltavam adicionados para consistência
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     # Relationship back to the Charge Point
     charge_point = relationship("ChargePoint", back_populates="connectors",
-                                primaryjoin="ChargePoint.charge_point_id == Connector.charge_point_id") # Explicit primaryjoin for clarity
+                                primaryjoin="ChargePoint.charge_point_id == Connector.charge_point_id")  # Explicit primaryjoin for clarity
 
 
 class Transaction(Base):
@@ -72,9 +87,13 @@ class Transaction(Base):
     energy_transfered = Column(Float, default=0.0, nullable=False)  # Total energy transferred (Wh or kWh)
     status = Column(String, default="Charging", nullable=False)  # Charging, Completed, Failed, Authorized, Stopped
 
+    # Campos que faltavam adicionados para consistência
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     # Relationship back to the Charge Point
     charge_point = relationship("ChargePoint", back_populates="transactions",
-                                primaryjoin="ChargePoint.charge_point_id == Transaction.charge_point_id") # Explicit primaryjoin for clarity
+                                primaryjoin="ChargePoint.charge_point_id == Transaction.charge_point_id")  # Explicit primaryjoin for clarity
 
 
 class User(Base):
@@ -92,6 +111,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 # Crucial: Ensures that all mappers are configured after all classes have been defined.
 # This makes sure SQLAlchemy understands all relationships.
